@@ -253,7 +253,7 @@ export function parseMANADFile(content: string): MANADFile {
         result.syntheticData.push({
           type: 'K250',
           cnpj: fields[1] || '',
-          movement: fields[2] || '',
+          indFl: fields[2] || '',
           departmentCode: fields[3] || '',
           employeeCode: fields[4] || '',
           period: parsePeriod(fields[5] || ''),
@@ -263,8 +263,8 @@ export function parseMANADFile(content: string): MANADFile {
           role: fields[9] || '',
           dependents: fields[10] || '',
           dependentsIR: fields[11] || '',
-          baseValue: fields[12] || '',
-          totalValue: fields[13] || '',
+          vlBaseIRRF: fields[12] || '',
+          vlBasePS: fields[13] || '',
           rawLine: line,
         });
         break;
