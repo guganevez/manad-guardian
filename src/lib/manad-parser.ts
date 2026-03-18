@@ -273,15 +273,15 @@ export function parseMANADFile(content: string): MANADFile {
         result.analyticData.push({
           type: 'K300',
           cnpj: fields[1] || '',
-          movement: fields[2] || '',
+          indFl: fields[2] || '',
           departmentCode: fields[3] || '',
           employeeCode: fields[4] || '',
           period: parsePeriod(fields[5] || ''),
           eventCode: fields[6] || '',
           value: fields[7] || '',
-          type_flag: fields[8] || '',
-          ref1: fields[9] || '',
-          ref2: fields[10] || '',
+          indRubr: fields[8] || '',
+          indBaseIRRF: fields[9] || '',
+          indBasePS: fields[10] || '',
           rawLine: line,
         });
         break;
