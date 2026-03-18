@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { MANADFile, getIndFlLabel, IND_RUBR_LABELS, IND_BASE_IRRF_LABELS, IND_BASE_PS_LABELS } from '@/lib/manad-parser';
 import { InspectorPanel } from './InspectorPanel';
+import { MultiSelectFilter } from './MultiSelectFilter';
 
 interface AnalyticViewProps {
   file: MANADFile;
