@@ -11,6 +11,7 @@ import { AnalyticView } from '@/components/AnalyticView';
 import { ControlView } from '@/components/ControlView';
 import { DiscrepancyView } from '@/components/DiscrepancyView';
 import { ComparisonView } from '@/components/ComparisonView';
+import { EmployeeValidationView } from '@/components/EmployeeValidationView';
 
 interface LoadedFile {
   file: MANADFile;
