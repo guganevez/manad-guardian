@@ -88,7 +88,7 @@ export interface RecordK150 {
 export interface RecordK250 {
   type: 'K250';
   cnpj: string;
-  movement: string;
+  indFl: string;
   departmentCode: string;
   employeeCode: string;
   period: string;
@@ -98,8 +98,8 @@ export interface RecordK250 {
   role: string;
   dependents: string;
   dependentsIR: string;
-  baseValue: string;
-  totalValue: string;
+  vlBaseIRRF: string;
+  vlBasePS: string;
   rawLine: string;
 }
 
