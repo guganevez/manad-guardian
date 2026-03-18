@@ -118,6 +118,17 @@ export function AuditSidebar({
         {/* Audit section */}
         <div className="audit-label px-4 py-2 mt-2">AUDITORIA</div>
         <button
+          onClick={() => onViewChange('validation')}
+          className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-150 ${
+            activeView === 'validation'
+              ? 'bg-accent text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          }`}
+        >
+          <span className="w-1 h-4 rounded-sm bg-primary" />
+          <span className="font-mono text-audit-sm flex-1">VALIDAÇÃO FUNC.</span>
+        </button>
+        <button
           onClick={() => onViewChange('discrepancies')}
           className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-150 ${
             activeView === 'discrepancies'

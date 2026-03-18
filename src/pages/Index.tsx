@@ -11,6 +11,7 @@ import { AnalyticView } from '@/components/AnalyticView';
 import { ControlView } from '@/components/ControlView';
 import { DiscrepancyView } from '@/components/DiscrepancyView';
 import { ComparisonView } from '@/components/ComparisonView';
+import { EmployeeValidationView } from '@/components/EmployeeValidationView';
 
 interface LoadedFile {
   file: MANADFile;
@@ -61,6 +62,7 @@ const Index = () => {
       case 'synthetic': return <SyntheticView file={file} />;
       case 'analytic': return <AnalyticView file={file} />;
       case 'control': return <ControlView file={file} />;
+      case 'validation': return <EmployeeValidationView file={file} />;
       case 'discrepancies': return <DiscrepancyView file={file} />;
       case 'comparison': return (
         <ComparisonView
