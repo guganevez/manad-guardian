@@ -14,8 +14,8 @@ export function AnalyticView({ file }: AnalyticViewProps) {
   const [eventFilter, setEventFilter] = useState('');
   const [indFlFilter, setIndFlFilter] = useState('');
   const [indRubrFilter, setIndRubrFilter] = useState('');
-  const [indBaseIRRFFilter, setIndBaseIRRFFilter] = useState('');
-  const [indBasePSFilter, setIndBasePSFilter] = useState('');
+  const [indBaseIRRFFilter, setIndBaseIRRFFilter] = useState<Set<string>>(new Set());
+  const [indBasePSFilter, setIndBasePSFilter] = useState<Set<string>>(new Set());
   const [selectedRaw, setSelectedRaw] = useState<string | null>(null);
 
   const workerMap = useMemo(() => {
