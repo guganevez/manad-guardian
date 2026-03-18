@@ -71,8 +71,8 @@ export function AnalyticView({ file }: AnalyticViewProps) {
       if (eventFilter && record.eventCode !== eventFilter) return false;
       if (indFlFilter && record.indFl !== indFlFilter) return false;
       if (indRubrFilter && record.indRubr !== indRubrFilter) return false;
-      if (indBaseIRRFFilter && record.indBaseIRRF !== indBaseIRRFFilter) return false;
-      if (indBasePSFilter && record.indBasePS !== indBasePSFilter) return false;
+      if (indBaseIRRFFilter.size > 0 && !indBaseIRRFFilter.has(record.indBaseIRRF)) return false;
+      if (indBasePSFilter.size > 0 && !indBasePSFilter.has(record.indBasePS)) return false;
 
       if (search) {
         const query = search.toLowerCase();
