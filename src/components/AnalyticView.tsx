@@ -42,20 +42,26 @@ export function AnalyticView({ file }: AnalyticViewProps) {
     return Array.from(values).sort();
   }, [file.analyticData]);
 
-  const indBaseIRRFValues = useMemo(() => {
+  const indBaseIRRFOptions = useMemo(() => {
     const values = new Set<string>();
     file.analyticData.forEach((record) => {
       if (record.indBaseIRRF) values.add(record.indBaseIRRF);
     });
-    return Array.from(values).sort();
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_IRRF_LABELS[v] || v}`,
+    }));
   }, [file.analyticData]);
 
-  const indBasePSValues = useMemo(() => {
+  const indBasePSOptions = useMemo(() => {
     const values = new Set<string>();
     file.analyticData.forEach((record) => {
       if (record.indBasePS) values.add(record.indBasePS);
     });
-    return Array.from(values).sort();
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_PS_LABELS[v] || v}`,
+    }));
   }, [file.analyticData]);
 
   const filtered = useMemo(() => {
