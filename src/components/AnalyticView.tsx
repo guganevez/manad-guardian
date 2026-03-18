@@ -163,30 +163,18 @@ export function AnalyticView({ file }: AnalyticViewProps) {
           <option value="D">D - Desconto</option>
           <option value="O">O - Outros</option>
         </select>
-        <select
-          value={indBaseIRRFFilter}
-          onChange={(event) => setIndBaseIRRFFilter(event.target.value)}
-          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
-        >
-          <option value="">BASE IRRF</option>
-          {indBaseIRRFValues.map((value) => (
-            <option key={value} value={value}>
-              {value} - {IND_BASE_IRRF_LABELS[value] || 'Indicador não mapeado'}
-            </option>
-          ))}
-        </select>
-        <select
-          value={indBasePSFilter}
-          onChange={(event) => setIndBasePSFilter(event.target.value)}
-          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
-        >
-          <option value="">BASE PS</option>
-          {indBasePSValues.map((value) => (
-            <option key={value} value={value}>
-              {value} - {IND_BASE_PS_LABELS[value] || 'Indicador não mapeado'}
-            </option>
-          ))}
-        </select>
+        <MultiSelectFilter
+          label="BASE IRRF"
+          options={indBaseIRRFOptions}
+          selected={indBaseIRRFFilter}
+          onChange={setIndBaseIRRFFilter}
+        />
+        <MultiSelectFilter
+          label="BASE PS"
+          options={indBasePSOptions}
+          selected={indBasePSFilter}
+          onChange={setIndBasePSFilter}
+        />
         <span className="ml-auto font-mono text-audit-xs text-muted-foreground">
           {filtered.length.toLocaleString('pt-BR')} registros
         </span>
