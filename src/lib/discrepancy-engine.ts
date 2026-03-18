@@ -9,6 +9,7 @@ export interface Discrepancy {
   employeeName: string;
   departmentCode: string;
   period: string;
+  indFl: string;
   description: string;
   k250Value?: string;
   k300Sum?: string;
@@ -25,8 +26,8 @@ export interface DiscrepancySummary {
 
 type K250Key = string;
 
-function makeKey(employeeCode: string, departmentCode: string, period: string): K250Key {
-  return `${employeeCode}|${departmentCode}|${period}`;
+function makeKey(employeeCode: string, departmentCode: string, period: string, indFl: string): K250Key {
+  return `${employeeCode}|${departmentCode}|${period}|${indFl}`;
 }
 
 function parseValue(v: string): number {
@@ -38,19 +39,19 @@ export function detectDiscrepancies(file: MANADFile): DiscrepancySummary {
   const workerMap = new Map<string, string>();
   file.workers.forEach(w => workerMap.set(w.employeeCode, w.name));
 
-  // Group K250 by employee+dept+period
+  // Group K250 by employee+dept+period+indFl
   const k250Map = new Map<K250Key, RecordK250[]>();
   for (const r of file.syntheticData) {
-    const key = makeKey(r.employeeCode, r.departmentCode, r.period);
+    const key = makeKey(r.employeeCode, r.departmentCode, r.period, r.indFl);
     const arr = k250Map.get(key) || [];
     arr.push(r);
     k250Map.set(key, arr);
   }
 
-  // Group K300 by employee+dept+period
+  // Group K300 by employee+dept+period+indFl
   const k300Map = new Map<K250Key, RecordK300[]>();
   for (const r of file.analyticData) {
-    const key = makeKey(r.employeeCode, r.departmentCode, r.period);
+    const key = makeKey(r.employeeCode, r.departmentCode, r.period, r.indFl);
     const arr = k300Map.get(key) || [];
     arr.push(r);
     k300Map.set(key, arr);
@@ -60,51 +61,91 @@ export function detectDiscrepancies(file: MANADFile): DiscrepancySummary {
 
   // Check K250 records that have no K300 counterparts
   for (const [key, k250Records] of k250Map) {
-    const [empCode, deptCode, period] = key.split('|');
+    const [empCode, deptCode, period, indFl] = key.split('|');
     const k300Records = k300Map.get(key);
 
     if (!k300Records || k300Records.length === 0) {
-      discrepancies.push({
-        type: 'missing_k300',
-        severity: 'critical',
-        employeeCode: empCode,
-        employeeName: workerMap.get(empCode) || empCode,
-        departmentCode: deptCode,
-        period,
-        description: 'Base sintética (K250) sem valores analíticos (K300) correspondentes',
-        k250Value: k250Records[0]?.totalValue,
-      });
-      continue;
-    }
-
-    // Compare total: sum of K300 proventos - descontos vs K250 totalValue
-    for (const k250 of k250Records) {
-      const totalK250 = parseValue(k250.totalValue);
-      const sumK300Proventos = k300Records
-        .filter(r => r.type_flag === 'P')
-        .reduce((s, r) => s + parseValue(r.value), 0);
-      const sumK300Descontos = k300Records
-        .filter(r => r.type_flag === 'D')
-        .reduce((s, r) => s + parseValue(r.value), 0);
-      const sumK300 = sumK300Proventos + sumK300Descontos; // K300 values already include sign
-
-      // Also check raw sum of all K300 values
-      const rawSumK300 = k300Records.reduce((s, r) => s + parseValue(r.value), 0);
-
-      const diff = Math.abs(totalK250 - rawSumK300);
-      if (diff > 0.01 && totalK250 > 0) {
+      const baseIRRF = parseValue(k250Records[0]?.vlBaseIRRF);
+      const basePS = parseValue(k250Records[0]?.vlBasePS);
+      if (baseIRRF > 0 || basePS > 0) {
         discrepancies.push({
-          type: 'sum_mismatch',
-          severity: diff > totalK250 * 0.05 ? 'critical' : 'warning',
+          type: 'missing_k300',
+          severity: 'critical',
           employeeCode: empCode,
           employeeName: workerMap.get(empCode) || empCode,
           departmentCode: deptCode,
           period,
-          description: `Diferença entre total K250 e soma K300: R$ ${diff.toFixed(2)}`,
-          k250Value: totalK250.toFixed(2),
-          k300Sum: rawSumK300.toFixed(2),
-          difference: diff.toFixed(2),
+          indFl,
+          description: 'Base sintética (K250) sem valores analíticos (K300) correspondentes',
+          k250Value: `IRRF: ${k250Records[0]?.vlBaseIRRF} / PS: ${k250Records[0]?.vlBasePS}`,
         });
+      }
+      continue;
+    }
+
+    // Compare bases for each K250
+    for (const k250 of k250Records) {
+      const baseIRRF = parseValue(k250.vlBaseIRRF);
+      const basePS = parseValue(k250.vlBasePS);
+
+      // Sum K300 values that are IRRF base (indBaseIRRF = 1 or 2)
+      const sumK300IRRF = k300Records
+        .filter(r => r.indBaseIRRF === '1' || r.indBaseIRRF === '2')
+        .filter(r => r.indRubr === 'P')
+        .reduce((s, r) => s + parseValue(r.value), 0)
+        - k300Records
+        .filter(r => r.indBaseIRRF === '1' || r.indBaseIRRF === '2')
+        .filter(r => r.indRubr === 'D')
+        .reduce((s, r) => s + parseValue(r.value), 0);
+
+      // Sum K300 values that are PS base (indBasePS = 1 or 2)  
+      const sumK300PS = k300Records
+        .filter(r => r.indBasePS === '1' || r.indBasePS === '2')
+        .filter(r => r.indRubr === 'P')
+        .reduce((s, r) => s + parseValue(r.value), 0)
+        - k300Records
+        .filter(r => r.indBasePS === '1' || r.indBasePS === '2')
+        .filter(r => r.indRubr === 'D')
+        .reduce((s, r) => s + parseValue(r.value), 0);
+
+      // Check IRRF base mismatch
+      if (baseIRRF > 0) {
+        const diffIRRF = Math.abs(baseIRRF - sumK300IRRF);
+        if (diffIRRF > 0.01) {
+          discrepancies.push({
+            type: 'sum_mismatch',
+            severity: diffIRRF > baseIRRF * 0.05 ? 'critical' : 'warning',
+            employeeCode: empCode,
+            employeeName: workerMap.get(empCode) || empCode,
+            departmentCode: deptCode,
+            period,
+            indFl,
+            description: `Diferença base IRRF: K250=${baseIRRF.toFixed(2)} vs K300=${sumK300IRRF.toFixed(2)}`,
+            k250Value: baseIRRF.toFixed(2),
+            k300Sum: sumK300IRRF.toFixed(2),
+            difference: diffIRRF.toFixed(2),
+          });
+        }
+      }
+
+      // Check PS base mismatch
+      if (basePS > 0) {
+        const diffPS = Math.abs(basePS - sumK300PS);
+        if (diffPS > 0.01) {
+          discrepancies.push({
+            type: 'sum_mismatch',
+            severity: diffPS > basePS * 0.05 ? 'critical' : 'warning',
+            employeeCode: empCode,
+            employeeName: workerMap.get(empCode) || empCode,
+            departmentCode: deptCode,
+            period,
+            indFl,
+            description: `Diferença base PS: K250=${basePS.toFixed(2)} vs K300=${sumK300PS.toFixed(2)}`,
+            k250Value: basePS.toFixed(2),
+            k300Sum: sumK300PS.toFixed(2),
+            difference: diffPS.toFixed(2),
+          });
+        }
       }
     }
   }
@@ -112,7 +153,7 @@ export function detectDiscrepancies(file: MANADFile): DiscrepancySummary {
   // Check K300 records that have no K250 counterpart
   for (const [key] of k300Map) {
     if (!k250Map.has(key)) {
-      const [empCode, deptCode, period] = key.split('|');
+      const [empCode, deptCode, period, indFl] = key.split('|');
       discrepancies.push({
         type: 'missing_k250',
         severity: 'warning',
@@ -120,6 +161,7 @@ export function detectDiscrepancies(file: MANADFile): DiscrepancySummary {
         employeeName: workerMap.get(empCode) || empCode,
         departmentCode: deptCode,
         period,
+        indFl,
         description: 'Valores analíticos (K300) sem base sintética (K250) correspondente',
       });
     }
@@ -169,8 +211,8 @@ export function compareFiles(file1: MANADFile, file1Name: string, file2: MANADFi
     inBoth: [...a].filter(x => b.has(x)).length,
   });
 
-  const total1 = file1.syntheticData.reduce((s, r) => s + parseValue(r.totalValue), 0);
-  const total2 = file2.syntheticData.reduce((s, r) => s + parseValue(r.totalValue), 0);
+  const total1 = file1.syntheticData.reduce((s, r) => s + parseValue(r.vlBasePS), 0);
+  const total2 = file2.syntheticData.reduce((s, r) => s + parseValue(r.vlBasePS), 0);
   const diff = total2 - total1;
 
   return {

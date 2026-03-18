@@ -88,7 +88,7 @@ export interface RecordK150 {
 export interface RecordK250 {
   type: 'K250';
   cnpj: string;
-  movement: string;
+  indFl: string;
   departmentCode: string;
   employeeCode: string;
   period: string;
@@ -98,23 +98,23 @@ export interface RecordK250 {
   role: string;
   dependents: string;
   dependentsIR: string;
-  baseValue: string;
-  totalValue: string;
+  vlBaseIRRF: string;
+  vlBasePS: string;
   rawLine: string;
 }
 
 export interface RecordK300 {
   type: 'K300';
   cnpj: string;
-  movement: string;
+  indFl: string;
   departmentCode: string;
   employeeCode: string;
   period: string;
   eventCode: string;
   value: string;
-  type_flag: string;
-  ref1: string;
-  ref2: string;
+  indRubr: string;
+  indBaseIRRF: string;
+  indBasePS: string;
   rawLine: string;
 }
 
@@ -253,7 +253,7 @@ export function parseMANADFile(content: string): MANADFile {
         result.syntheticData.push({
           type: 'K250',
           cnpj: fields[1] || '',
-          movement: fields[2] || '',
+          indFl: fields[2] || '',
           departmentCode: fields[3] || '',
           employeeCode: fields[4] || '',
           period: parsePeriod(fields[5] || ''),
@@ -263,8 +263,8 @@ export function parseMANADFile(content: string): MANADFile {
           role: fields[9] || '',
           dependents: fields[10] || '',
           dependentsIR: fields[11] || '',
-          baseValue: fields[12] || '',
-          totalValue: fields[13] || '',
+          vlBaseIRRF: fields[12] || '',
+          vlBasePS: fields[13] || '',
           rawLine: line,
         });
         break;
@@ -273,15 +273,15 @@ export function parseMANADFile(content: string): MANADFile {
         result.analyticData.push({
           type: 'K300',
           cnpj: fields[1] || '',
-          movement: fields[2] || '',
+          indFl: fields[2] || '',
           departmentCode: fields[3] || '',
           employeeCode: fields[4] || '',
           period: parsePeriod(fields[5] || ''),
           eventCode: fields[6] || '',
           value: fields[7] || '',
-          type_flag: fields[8] || '',
-          ref1: fields[9] || '',
-          ref2: fields[10] || '',
+          indRubr: fields[8] || '',
+          indBaseIRRF: fields[9] || '',
+          indBasePS: fields[10] || '',
           rawLine: line,
         });
         break;
@@ -312,3 +312,36 @@ export function formatCurrency(value: string): string {
   if (!value) return 'R$ 0,00';
   return `R$ ${value}`;
 }
+
+export const IND_FL_LABELS: Record<string, string> = {
+  '1': 'Normal',
+  '2': '13º Salário',
+  '3': 'Férias',
+  '4': 'Compl. Normal',
+  '5': 'Compl. 13º',
+};
+
+export function getIndFlLabel(indFl: string): string {
+  return IND_FL_LABELS[indFl] || `Outra (${indFl})`;
+}
+
+export const IND_RUBR_LABELS: Record<string, string> = {
+  'P': 'Provento',
+  'D': 'Desconto',
+  'O': 'Outros',
+};
+
+export const IND_BASE_IRRF_LABELS: Record<string, string> = {
+  '1': 'Base salário mensal',
+  '2': 'Base 13º salário',
+  '3': 'Não é base',
+  '9': 'Outras bases',
+};
+
+export const IND_BASE_PS_LABELS: Record<string, string> = {
+  '1': 'Base salário mensal',
+  '2': 'Base 13º salário',
+  '3': 'Não é base',
+  '8': 'Outras bases',
+  '9': 'Outras bases',
+};

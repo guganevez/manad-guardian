@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MANADFile } from '@/lib/manad-parser';
+import { MANADFile, getIndFlLabel } from '@/lib/manad-parser';
 import { detectDiscrepancies, Discrepancy } from '@/lib/discrepancy-engine';
 
 interface DiscrepancyViewProps {
@@ -25,20 +25,38 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
   const [severityFilter, setSeverityFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('');
+  const [indFlFilter, setIndFlFilter] = useState('');
 
   const summary = useMemo(() => detectDiscrepancies(file), [file]);
+
+  const periods = useMemo(() => {
+    const set = new Set<string>();
+    summary.discrepancies.forEach(d => set.add(d.period));
+    return Array.from(set).sort();
+  }, [summary]);
+
+  const indFlValues = useMemo(() => {
+    const set = new Set<string>();
+    summary.discrepancies.forEach(d => set.add(d.indFl));
+    return Array.from(set).sort();
+  }, [summary]);
 
   const filtered = useMemo(() => {
     return summary.discrepancies.filter((d) => {
       if (severityFilter && d.severity !== severityFilter) return false;
       if (typeFilter && d.type !== typeFilter) return false;
+      if (deptFilter && d.departmentCode !== deptFilter) return false;
+      if (periodFilter && d.period !== periodFilter) return false;
+      if (indFlFilter && d.indFl !== indFlFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!d.employeeName.toLowerCase().includes(q) && !d.employeeCode.includes(q)) return false;
       }
       return true;
     });
-  }, [summary, severityFilter, typeFilter, search]);
+  }, [summary, severityFilter, typeFilter, deptFilter, periodFilter, indFlFilter, search]);
 
   return (
     <div className="flex flex-col h-full">
@@ -74,6 +92,38 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
           onChange={(e) => setSearch(e.target.value)}
           className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground placeholder:text-muted-foreground max-w-xs outline-none focus:border-primary/50 transition-colors duration-150"
         />
+        <select
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODOS DEPTOS</option>
+          {file.departments.map((d) => (
+            <option key={d.departmentCode} value={d.departmentCode}>
+              {d.departmentCode} - {d.departmentName}
+            </option>
+          ))}
+        </select>
+        <select
+          value={periodFilter}
+          onChange={(e) => setPeriodFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODOS PERÍODOS</option>
+          {periods.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select
+          value={indFlFilter}
+          onChange={(e) => setIndFlFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODAS FOLHAS</option>
+          {indFlValues.map((v) => (
+            <option key={v} value={v}>{v} - {getIndFlLabel(v)}</option>
+          ))}
+        </select>
         <select
           value={severityFilter}
           onChange={(e) => setSeverityFilter(e.target.value)}
@@ -118,6 +168,7 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
                 <th className="audit-label text-left p-2">FUNCIONÁRIO</th>
                 <th className="audit-label text-left p-2">DEPTO</th>
                 <th className="audit-label text-left p-2">PERÍODO</th>
+                <th className="audit-label text-left p-2">FOLHA</th>
                 <th className="audit-label text-left p-2">DESCRIÇÃO</th>
                 <th className="audit-label text-right p-2">K250</th>
                 <th className="audit-label text-right p-2">K300</th>
@@ -141,6 +192,9 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
                   </td>
                   <td className="font-mono text-audit-sm p-2 text-muted-foreground">{d.departmentCode}</td>
                   <td className="font-mono text-audit-sm p-2 text-muted-foreground">{d.period}</td>
+                  <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={getIndFlLabel(d.indFl)}>
+                    {d.indFl} - {getIndFlLabel(d.indFl)}
+                  </td>
                   <td className="font-mono text-audit-xs p-2 text-foreground max-w-[300px]">{d.description}</td>
                   <td className="font-mono text-audit-sm p-2 text-right text-foreground">
                     {d.k250Value ? `R$ ${d.k250Value}` : '—'}

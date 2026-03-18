@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MANADFile } from '@/lib/manad-parser';
+import { MANADFile, getIndFlLabel, IND_RUBR_LABELS, IND_BASE_IRRF_LABELS, IND_BASE_PS_LABELS } from '@/lib/manad-parser';
 import { InspectorPanel } from './InspectorPanel';
 
 interface AnalyticViewProps {
@@ -11,6 +11,8 @@ export function AnalyticView({ file }: AnalyticViewProps) {
   const [deptFilter, setDeptFilter] = useState('');
   const [periodFilter, setPeriodFilter] = useState('');
   const [eventFilter, setEventFilter] = useState('');
+  const [indFlFilter, setIndFlFilter] = useState('');
+  const [indRubrFilter, setIndRubrFilter] = useState('');
   const [selectedRaw, setSelectedRaw] = useState<string | null>(null);
 
   const workerMap = useMemo(() => {
@@ -31,11 +33,19 @@ export function AnalyticView({ file }: AnalyticViewProps) {
     return Array.from(set).sort();
   }, [file.analyticData]);
 
+  const indFlValues = useMemo(() => {
+    const set = new Set<string>();
+    file.analyticData.forEach(r => set.add(r.indFl));
+    return Array.from(set).sort();
+  }, [file.analyticData]);
+
   const filtered = useMemo(() => {
     return file.analyticData.filter((r) => {
       if (deptFilter && r.departmentCode !== deptFilter) return false;
       if (periodFilter && r.period !== periodFilter) return false;
       if (eventFilter && r.eventCode !== eventFilter) return false;
+      if (indFlFilter && r.indFl !== indFlFilter) return false;
+      if (indRubrFilter && r.indRubr !== indRubrFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const name = workerMap.get(r.employeeCode) || '';
@@ -43,16 +53,7 @@ export function AnalyticView({ file }: AnalyticViewProps) {
       }
       return true;
     });
-  }, [file.analyticData, deptFilter, periodFilter, eventFilter, search, workerMap]);
-
-  const typeLabel = (t: string) => {
-    switch (t) {
-      case 'P': return 'PROVENTO';
-      case 'D': return 'DESCONTO';
-      case 'O': return 'OUTROS';
-      default: return t;
-    }
-  };
+  }, [file.analyticData, deptFilter, periodFilter, eventFilter, indFlFilter, indRubrFilter, search, workerMap]);
 
   return (
     <div className="flex flex-col h-full">
@@ -98,6 +99,26 @@ export function AnalyticView({ file }: AnalyticViewProps) {
             </option>
           ))}
         </select>
+        <select
+          value={indFlFilter}
+          onChange={(e) => setIndFlFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODAS FOLHAS</option>
+          {indFlValues.map((v) => (
+            <option key={v} value={v}>{v} - {getIndFlLabel(v)}</option>
+          ))}
+        </select>
+        <select
+          value={indRubrFilter}
+          onChange={(e) => setIndRubrFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODOS TIPOS</option>
+          <option value="P">P - Provento</option>
+          <option value="D">D - Desconto</option>
+          <option value="O">O - Outros</option>
+        </select>
         <span className="font-mono text-audit-xs text-muted-foreground ml-auto">
           {filtered.length.toLocaleString('pt-BR')} registros
         </span>
@@ -107,14 +128,16 @@ export function AnalyticView({ file }: AnalyticViewProps) {
         <table className="w-full">
           <thead className="sticky top-0 bg-background z-10">
             <tr className="border-b border-border">
-              <th className="audit-label text-left p-2">MOV</th>
+              <th className="audit-label text-left p-2">FOLHA</th>
               <th className="audit-label text-left p-2">DEPTO</th>
               <th className="audit-label text-left p-2">CÓD</th>
               <th className="audit-label text-left p-2">FUNCIONÁRIO</th>
               <th className="audit-label text-left p-2">PERÍODO</th>
               <th className="audit-label text-left p-2">EVENTO</th>
               <th className="audit-label text-right p-2">VALOR</th>
-              <th className="audit-label text-left p-2">TIPO</th>
+              <th className="audit-label text-left p-2">RUBRICA</th>
+              <th className="audit-label text-left p-2">BASE IRRF</th>
+              <th className="audit-label text-left p-2">BASE PS</th>
             </tr>
           </thead>
           <tbody>
@@ -125,7 +148,9 @@ export function AnalyticView({ file }: AnalyticViewProps) {
                 className="border-b border-border/50 hover:bg-accent/30 cursor-pointer transition-colors duration-150"
                 style={{ borderLeft: '2px solid hsl(var(--manad-blockK))' }}
               >
-                <td className="font-mono text-audit-sm p-2 text-muted-foreground">{r.movement}</td>
+                <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={getIndFlLabel(r.indFl)}>
+                  {r.indFl}
+                </td>
                 <td className="font-mono text-audit-sm p-2 text-muted-foreground">{r.departmentCode}</td>
                 <td className="font-mono text-audit-sm p-2 text-muted-foreground">{r.employeeCode}</td>
                 <td className="font-mono text-audit-sm p-2 text-foreground">
@@ -138,12 +163,18 @@ export function AnalyticView({ file }: AnalyticViewProps) {
                 <td className="font-mono text-audit-sm p-2 text-right text-primary">R$ {r.value}</td>
                 <td className="font-mono text-audit-xs p-2">
                   <span className={
-                    r.type_flag === 'P' ? 'text-primary' :
-                    r.type_flag === 'D' ? 'text-destructive' :
+                    r.indRubr === 'P' ? 'text-primary' :
+                    r.indRubr === 'D' ? 'text-destructive' :
                     'text-muted-foreground'
                   }>
-                    {typeLabel(r.type_flag)}
+                    {IND_RUBR_LABELS[r.indRubr] || r.indRubr}
                   </span>
+                </td>
+                <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={IND_BASE_IRRF_LABELS[r.indBaseIRRF]}>
+                  {r.indBaseIRRF}
+                </td>
+                <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={IND_BASE_PS_LABELS[r.indBasePS]}>
+                  {r.indBasePS}
                 </td>
               </tr>
             ))}

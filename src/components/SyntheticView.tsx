@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { RecordK250, RecordK050, RecordK100, MANADFile } from '@/lib/manad-parser';
+import { MANADFile, getIndFlLabel } from '@/lib/manad-parser';
 import { InspectorPanel } from './InspectorPanel';
 
 interface SyntheticViewProps {
@@ -10,6 +10,7 @@ export function SyntheticView({ file }: SyntheticViewProps) {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [periodFilter, setPeriodFilter] = useState('');
+  const [indFlFilter, setIndFlFilter] = useState('');
   const [selectedRaw, setSelectedRaw] = useState<string | null>(null);
 
   const workerMap = useMemo(() => {
@@ -30,10 +31,17 @@ export function SyntheticView({ file }: SyntheticViewProps) {
     return Array.from(set).sort();
   }, [file.syntheticData]);
 
+  const indFlValues = useMemo(() => {
+    const set = new Set<string>();
+    file.syntheticData.forEach(r => set.add(r.indFl));
+    return Array.from(set).sort();
+  }, [file.syntheticData]);
+
   const filtered = useMemo(() => {
     return file.syntheticData.filter((r) => {
       if (deptFilter && r.departmentCode !== deptFilter) return false;
       if (periodFilter && r.period !== periodFilter) return false;
+      if (indFlFilter && r.indFl !== indFlFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const workerName = workerMap.get(r.employeeCode) || '';
@@ -41,7 +49,7 @@ export function SyntheticView({ file }: SyntheticViewProps) {
       }
       return true;
     });
-  }, [file.syntheticData, deptFilter, periodFilter, search, workerMap]);
+  }, [file.syntheticData, deptFilter, periodFilter, indFlFilter, search, workerMap]);
 
   return (
     <div className="flex flex-col h-full">
@@ -75,6 +83,16 @@ export function SyntheticView({ file }: SyntheticViewProps) {
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
+        <select
+          value={indFlFilter}
+          onChange={(e) => setIndFlFilter(e.target.value)}
+          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+        >
+          <option value="">TODAS FOLHAS</option>
+          {indFlValues.map((v) => (
+            <option key={v} value={v}>{v} - {getIndFlLabel(v)}</option>
+          ))}
+        </select>
         <span className="font-mono text-audit-xs text-muted-foreground ml-auto">
           {filtered.length.toLocaleString('pt-BR')} registros
         </span>
@@ -84,14 +102,14 @@ export function SyntheticView({ file }: SyntheticViewProps) {
         <table className="w-full">
           <thead className="sticky top-0 bg-background z-10">
             <tr className="border-b border-border">
-              <th className="audit-label text-left p-2">MOV</th>
+              <th className="audit-label text-left p-2">FOLHA</th>
               <th className="audit-label text-left p-2">DEPTO</th>
               <th className="audit-label text-left p-2">CÓD</th>
               <th className="audit-label text-left p-2">FUNCIONÁRIO</th>
               <th className="audit-label text-left p-2">PERÍODO</th>
               <th className="audit-label text-left p-2">CARGO</th>
-              <th className="audit-label text-right p-2">BASE</th>
-              <th className="audit-label text-right p-2">TOTAL</th>
+              <th className="audit-label text-right p-2">BASE IRRF</th>
+              <th className="audit-label text-right p-2">BASE PS</th>
             </tr>
           </thead>
           <tbody>
@@ -102,7 +120,9 @@ export function SyntheticView({ file }: SyntheticViewProps) {
                 className="border-b border-border/50 hover:bg-accent/30 cursor-pointer transition-colors duration-150"
                 style={{ borderLeft: '2px solid hsl(var(--manad-blockK))' }}
               >
-                <td className="font-mono text-audit-sm p-2 text-muted-foreground">{r.movement}</td>
+                <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={getIndFlLabel(r.indFl)}>
+                  {r.indFl} - {getIndFlLabel(r.indFl)}
+                </td>
                 <td className="font-mono text-audit-sm p-2 text-muted-foreground" title={deptMap.get(r.departmentCode)}>
                   {r.departmentCode}
                 </td>
@@ -112,8 +132,8 @@ export function SyntheticView({ file }: SyntheticViewProps) {
                 </td>
                 <td className="font-mono text-audit-sm p-2 text-muted-foreground">{r.period}</td>
                 <td className="font-mono text-audit-sm p-2 text-muted-foreground truncate max-w-[200px]">{r.role}</td>
-                <td className="font-mono text-audit-sm p-2 text-right text-foreground">R$ {r.baseValue}</td>
-                <td className="font-mono text-audit-sm p-2 text-right text-primary">R$ {r.totalValue}</td>
+                <td className="font-mono text-audit-sm p-2 text-right text-foreground">R$ {r.vlBaseIRRF}</td>
+                <td className="font-mono text-audit-sm p-2 text-right text-primary">R$ {r.vlBasePS}</td>
               </tr>
             ))}
           </tbody>
