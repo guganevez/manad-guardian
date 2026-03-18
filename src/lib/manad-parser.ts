@@ -312,3 +312,36 @@ export function formatCurrency(value: string): string {
   if (!value) return 'R$ 0,00';
   return `R$ ${value}`;
 }
+
+export const IND_FL_LABELS: Record<string, string> = {
+  '1': 'Normal',
+  '2': '13º Salário',
+  '3': 'Férias',
+  '4': 'Compl. Normal',
+  '5': 'Compl. 13º',
+};
+
+export function getIndFlLabel(indFl: string): string {
+  return IND_FL_LABELS[indFl] || `Outra (${indFl})`;
+}
+
+export const IND_RUBR_LABELS: Record<string, string> = {
+  'P': 'Provento',
+  'D': 'Desconto',
+  'O': 'Outros',
+};
+
+export const IND_BASE_IRRF_LABELS: Record<string, string> = {
+  '1': 'Base salário mensal',
+  '2': 'Base 13º salário',
+  '3': 'Não é base',
+  '9': 'Outras bases',
+};
+
+export const IND_BASE_PS_LABELS: Record<string, string> = {
+  '1': 'Base salário mensal',
+  '2': 'Base 13º salário',
+  '3': 'Não é base',
+  '8': 'Outras bases',
+  '9': 'Outras bases',
+};
