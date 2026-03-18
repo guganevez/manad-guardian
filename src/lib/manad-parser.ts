@@ -106,15 +106,15 @@ export interface RecordK250 {
 export interface RecordK300 {
   type: 'K300';
   cnpj: string;
-  movement: string;
+  indFl: string;
   departmentCode: string;
   employeeCode: string;
   period: string;
   eventCode: string;
   value: string;
-  type_flag: string;
-  ref1: string;
-  ref2: string;
+  indRubr: string;
+  indBaseIRRF: string;
+  indBasePS: string;
   rawLine: string;
 }
 
