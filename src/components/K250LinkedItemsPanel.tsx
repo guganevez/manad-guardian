@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   RecordK250,
   RecordK300,
@@ -7,6 +7,7 @@ import {
   IND_BASE_IRRF_LABELS,
   IND_BASE_PS_LABELS,
 } from '@/lib/manad-parser';
+import { MultiSelectFilter } from './MultiSelectFilter';
 
 interface K250LinkedItemsPanelProps {
   selectedRecord: RecordK250;
@@ -23,9 +24,14 @@ function parseValue(value: string): number {
   return parseFloat(value.replace(',', '.')) || 0;
 }
 
+function getRubrMultiplier(indRubr: string): number {
+  if (indRubr === 'P') return 1;
+  if (indRubr === 'D') return -1;
+  return 0; // 'O' - Outros
+}
+
 function getSignedValue(record: RecordK300): number {
-  const value = parseValue(record.value);
-  return record.indRubr === 'D' ? -value : value;
+  return parseValue(record.value) * getRubrMultiplier(record.indRubr);
 }
 
 export function K250LinkedItemsPanel({
@@ -37,27 +43,65 @@ export function K250LinkedItemsPanel({
   onClose,
   onInspectRaw,
 }: K250LinkedItemsPanelProps) {
-  const summary = useMemo(() => {
-    return linkedRecords.reduce(
-      (totals, record) => {
-        if (record.indBaseIRRF && record.indBaseIRRF !== '3') {
-          totals.irrfCount += 1;
-          totals.irrfTotal += getSignedValue(record);
-        }
+  const [baseIRRFFilter, setBaseIRRFFilter] = useState<Set<string>>(new Set());
+  const [basePSFilter, setBasePSFilter] = useState<Set<string>>(new Set());
+  const [rubrFilter, setRubrFilter] = useState('');
 
-        if (record.indBasePS && record.indBasePS !== '3') {
-          totals.psCount += 1;
-          totals.psTotal += getSignedValue(record);
-        }
-
-        return totals;
-      },
-      { irrfTotal: 0, psTotal: 0, irrfCount: 0, psCount: 0 },
-    );
+  const baseIRRFOptions = useMemo(() => {
+    const values = new Set<string>();
+    linkedRecords.forEach((r) => { if (r.indBaseIRRF) values.add(r.indBaseIRRF); });
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_IRRF_LABELS[v] || v}`,
+    }));
   }, [linkedRecords]);
+
+  const basePSOptions = useMemo(() => {
+    const values = new Set<string>();
+    linkedRecords.forEach((r) => { if (r.indBasePS) values.add(r.indBasePS); });
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_PS_LABELS[v] || v}`,
+    }));
+  }, [linkedRecords]);
+
+  const filtered = useMemo(() => {
+    return linkedRecords.filter((r) => {
+      if (baseIRRFFilter.size > 0 && !baseIRRFFilter.has(r.indBaseIRRF)) return false;
+      if (basePSFilter.size > 0 && !basePSFilter.has(r.indBasePS)) return false;
+      if (rubrFilter && r.indRubr !== rubrFilter) return false;
+      return true;
+    });
+  }, [linkedRecords, baseIRRFFilter, basePSFilter, rubrFilter]);
+
+  const totals = useMemo(() => {
+    const result = { count: filtered.length, totalSigned: 0, irrfTotal: 0, psTotal: 0, irrfCount: 0, psCount: 0 };
+
+    filtered.forEach((record) => {
+      const signed = getSignedValue(record);
+      result.totalSigned += signed;
+
+      if (record.indBaseIRRF && record.indBaseIRRF !== '3') {
+        result.irrfCount += 1;
+        result.irrfTotal += signed;
+      }
+      if (record.indBasePS && record.indBasePS !== '3') {
+        result.psCount += 1;
+        result.psTotal += signed;
+      }
+    });
+
+    return result;
+  }, [filtered]);
+
+  const k250BaseIRRF = parseValue(selectedRecord.vlBaseIRRF);
+  const k250BasePS = parseValue(selectedRecord.vlBasePS);
+  const diffIRRF = k250BaseIRRF - totals.irrfTotal;
+  const diffPS = k250BasePS - totals.psTotal;
 
   return (
     <div className="border-t border-border surface">
+      {/* Header */}
       <div className="flex flex-col gap-4 border-b border-border p-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-3">
           <div>
@@ -111,25 +155,80 @@ export function K250LinkedItemsPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 border-b border-border p-4 md:grid-cols-3">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-border p-3">
+        <span className="font-mono text-audit-xs text-muted-foreground">FILTROS K300:</span>
+        <MultiSelectFilter
+          label="BASE IRRF"
+          options={baseIRRFOptions}
+          selected={baseIRRFFilter}
+          onChange={setBaseIRRFFilter}
+        />
+        <MultiSelectFilter
+          label="BASE PS"
+          options={basePSOptions}
+          selected={basePSFilter}
+          onChange={setBasePSFilter}
+        />
+        <select
+          value={rubrFilter}
+          onChange={(e) => setRubrFilter(e.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
+        >
+          <option value="">TODAS RUBRICAS</option>
+          <option value="P">P - Provento</option>
+          <option value="D">D - Desconto</option>
+          <option value="O">O - Outros</option>
+        </select>
+        <span className="ml-auto font-mono text-audit-xs text-muted-foreground">
+          {filtered.length} de {linkedRecords.length} itens
+        </span>
+      </div>
+
+      {/* Totalizers */}
+      <div className="grid gap-3 border-b border-border p-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-sm border border-border bg-background/60 p-3">
-          <div className="audit-label mb-1">ITENS K300</div>
-          <div className="font-mono text-xl text-foreground">{linkedRecords.length}</div>
+          <div className="audit-label mb-1">TOTAL SELEÇÃO</div>
+          <div className={`font-mono text-lg ${totals.totalSigned >= 0 ? 'text-primary' : 'text-destructive'}`}>
+            R$ {totals.totalSigned.toFixed(2)}
+          </div>
+          <div className="font-mono text-audit-xs text-muted-foreground">
+            P(+1) D(-1) O(0) · {filtered.length} itens
+          </div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
-          <div className="audit-label mb-1">SOMA BASE IRRF</div>
-          <div className="font-mono text-xl text-foreground">R$ {summary.irrfTotal.toFixed(2)}</div>
-          <div className="font-mono text-audit-xs text-muted-foreground">{summary.irrfCount} itens com base IRRF</div>
+          <div className="audit-label mb-1">SOMA BASE IRRF (K300)</div>
+          <div className="font-mono text-lg text-foreground">R$ {totals.irrfTotal.toFixed(2)}</div>
+          <div className="font-mono text-audit-xs text-muted-foreground">{totals.irrfCount} itens com base IRRF</div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
-          <div className="audit-label mb-1">SOMA BASE PS</div>
-          <div className="font-mono text-xl text-primary">R$ {summary.psTotal.toFixed(2)}</div>
-          <div className="font-mono text-audit-xs text-muted-foreground">{summary.psCount} itens com base PS</div>
+          <div className="audit-label mb-1">SOMA BASE PS (K300)</div>
+          <div className="font-mono text-lg text-primary">R$ {totals.psTotal.toFixed(2)}</div>
+          <div className="font-mono text-audit-xs text-muted-foreground">{totals.psCount} itens com base PS</div>
+        </div>
+        <div className="rounded-sm border border-border bg-background/60 p-3">
+          <div className="audit-label mb-1">DIFERENÇA IRRF</div>
+          <div className={`font-mono text-lg ${Math.abs(diffIRRF) < 0.01 ? 'text-primary' : 'text-destructive'}`}>
+            R$ {diffIRRF.toFixed(2)}
+          </div>
+          <div className="font-mono text-audit-xs text-muted-foreground">
+            K250({k250BaseIRRF.toFixed(2)}) − K300({totals.irrfTotal.toFixed(2)})
+          </div>
+        </div>
+        <div className="rounded-sm border border-border bg-background/60 p-3">
+          <div className="audit-label mb-1">DIFERENÇA PS</div>
+          <div className={`font-mono text-lg ${Math.abs(diffPS) < 0.01 ? 'text-primary' : 'text-destructive'}`}>
+            R$ {diffPS.toFixed(2)}
+          </div>
+          <div className="font-mono text-audit-xs text-muted-foreground">
+            K250({k250BasePS.toFixed(2)}) − K300({totals.psTotal.toFixed(2)})
+          </div>
         </div>
       </div>
 
+      {/* Table */}
       <div className="max-h-[22rem] overflow-auto">
-        {linkedRecords.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="p-6 text-center">
             <div className="font-mono text-audit-sm text-muted-foreground">
               Nenhum item K300 vinculado ao K250 selecionado.
@@ -142,34 +241,45 @@ export function K250LinkedItemsPanel({
                 <th className="audit-label p-2 text-left">EVENTO</th>
                 <th className="audit-label p-2 text-left">DESCRIÇÃO</th>
                 <th className="audit-label p-2 text-right">VALOR</th>
+                <th className="audit-label p-2 text-right">VALOR C/ SINAL</th>
                 <th className="audit-label p-2 text-left">RUBRICA</th>
                 <th className="audit-label p-2 text-left">BASE IRRF</th>
                 <th className="audit-label p-2 text-left">BASE PS</th>
               </tr>
             </thead>
             <tbody>
-              {linkedRecords.map((record, index) => (
-                <tr
-                  key={`${record.eventCode}-${index}`}
-                  onClick={() => onInspectRaw(record.rawLine)}
-                  className="cursor-pointer border-b border-border/50 transition-colors duration-150 hover:bg-accent/30"
-                >
-                  <td className="p-2 font-mono text-audit-sm text-foreground">{record.eventCode}</td>
-                  <td className="max-w-[260px] p-2 font-mono text-audit-xs text-muted-foreground" title={eventMap.get(record.eventCode)}>
-                    {eventMap.get(record.eventCode) || 'Evento não localizado'}
-                  </td>
-                  <td className="p-2 text-right font-mono text-audit-sm text-foreground">R$ {record.value}</td>
-                  <td className="p-2 font-mono text-audit-xs text-muted-foreground">
-                    {record.indRubr} - {IND_RUBR_LABELS[record.indRubr] || record.indRubr}
-                  </td>
-                  <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_IRRF_LABELS[record.indBaseIRRF]}>
-                    {record.indBaseIRRF || '—'}
-                  </td>
-                  <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_PS_LABELS[record.indBasePS]}>
-                    {record.indBasePS || '—'}
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((record, index) => {
+                const signed = getSignedValue(record);
+                return (
+                  <tr
+                    key={`${record.eventCode}-${index}`}
+                    onClick={() => onInspectRaw(record.rawLine)}
+                    className="cursor-pointer border-b border-border/50 transition-colors duration-150 hover:bg-accent/30"
+                  >
+                    <td className="p-2 font-mono text-audit-sm text-foreground">{record.eventCode}</td>
+                    <td className="max-w-[260px] p-2 font-mono text-audit-xs text-muted-foreground" title={eventMap.get(record.eventCode)}>
+                      {eventMap.get(record.eventCode) || 'Evento não localizado'}
+                    </td>
+                    <td className="p-2 text-right font-mono text-audit-sm text-foreground">R$ {record.value}</td>
+                    <td className={`p-2 text-right font-mono text-audit-sm ${signed >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      R$ {signed.toFixed(2)}
+                    </td>
+                    <td className="p-2 font-mono text-audit-xs">
+                      <span className={
+                        record.indRubr === 'P' ? 'text-primary' : record.indRubr === 'D' ? 'text-destructive' : 'text-muted-foreground'
+                      }>
+                        {record.indRubr} - {IND_RUBR_LABELS[record.indRubr] || record.indRubr}
+                      </span>
+                    </td>
+                    <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_IRRF_LABELS[record.indBaseIRRF]}>
+                      {record.indBaseIRRF || '—'}
+                    </td>
+                    <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_PS_LABELS[record.indBasePS]}>
+                      {record.indBasePS || '—'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

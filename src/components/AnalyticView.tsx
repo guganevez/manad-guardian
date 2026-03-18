@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { MANADFile, getIndFlLabel, IND_RUBR_LABELS, IND_BASE_IRRF_LABELS, IND_BASE_PS_LABELS } from '@/lib/manad-parser';
 import { InspectorPanel } from './InspectorPanel';
+import { MultiSelectFilter } from './MultiSelectFilter';
 
 interface AnalyticViewProps {
   file: MANADFile;
@@ -13,8 +14,8 @@ export function AnalyticView({ file }: AnalyticViewProps) {
   const [eventFilter, setEventFilter] = useState('');
   const [indFlFilter, setIndFlFilter] = useState('');
   const [indRubrFilter, setIndRubrFilter] = useState('');
-  const [indBaseIRRFFilter, setIndBaseIRRFFilter] = useState('');
-  const [indBasePSFilter, setIndBasePSFilter] = useState('');
+  const [indBaseIRRFFilter, setIndBaseIRRFFilter] = useState<Set<string>>(new Set());
+  const [indBasePSFilter, setIndBasePSFilter] = useState<Set<string>>(new Set());
   const [selectedRaw, setSelectedRaw] = useState<string | null>(null);
 
   const workerMap = useMemo(() => {
@@ -41,20 +42,26 @@ export function AnalyticView({ file }: AnalyticViewProps) {
     return Array.from(values).sort();
   }, [file.analyticData]);
 
-  const indBaseIRRFValues = useMemo(() => {
+  const indBaseIRRFOptions = useMemo(() => {
     const values = new Set<string>();
     file.analyticData.forEach((record) => {
       if (record.indBaseIRRF) values.add(record.indBaseIRRF);
     });
-    return Array.from(values).sort();
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_IRRF_LABELS[v] || v}`,
+    }));
   }, [file.analyticData]);
 
-  const indBasePSValues = useMemo(() => {
+  const indBasePSOptions = useMemo(() => {
     const values = new Set<string>();
     file.analyticData.forEach((record) => {
       if (record.indBasePS) values.add(record.indBasePS);
     });
-    return Array.from(values).sort();
+    return Array.from(values).sort().map((v) => ({
+      value: v,
+      label: `${v} - ${IND_BASE_PS_LABELS[v] || v}`,
+    }));
   }, [file.analyticData]);
 
   const filtered = useMemo(() => {
@@ -64,8 +71,8 @@ export function AnalyticView({ file }: AnalyticViewProps) {
       if (eventFilter && record.eventCode !== eventFilter) return false;
       if (indFlFilter && record.indFl !== indFlFilter) return false;
       if (indRubrFilter && record.indRubr !== indRubrFilter) return false;
-      if (indBaseIRRFFilter && record.indBaseIRRF !== indBaseIRRFFilter) return false;
-      if (indBasePSFilter && record.indBasePS !== indBasePSFilter) return false;
+      if (indBaseIRRFFilter.size > 0 && !indBaseIRRFFilter.has(record.indBaseIRRF)) return false;
+      if (indBasePSFilter.size > 0 && !indBasePSFilter.has(record.indBasePS)) return false;
 
       if (search) {
         const query = search.toLowerCase();
@@ -156,30 +163,18 @@ export function AnalyticView({ file }: AnalyticViewProps) {
           <option value="D">D - Desconto</option>
           <option value="O">O - Outros</option>
         </select>
-        <select
-          value={indBaseIRRFFilter}
-          onChange={(event) => setIndBaseIRRFFilter(event.target.value)}
-          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
-        >
-          <option value="">BASE IRRF</option>
-          {indBaseIRRFValues.map((value) => (
-            <option key={value} value={value}>
-              {value} - {IND_BASE_IRRF_LABELS[value] || 'Indicador não mapeado'}
-            </option>
-          ))}
-        </select>
-        <select
-          value={indBasePSFilter}
-          onChange={(event) => setIndBasePSFilter(event.target.value)}
-          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
-        >
-          <option value="">BASE PS</option>
-          {indBasePSValues.map((value) => (
-            <option key={value} value={value}>
-              {value} - {IND_BASE_PS_LABELS[value] || 'Indicador não mapeado'}
-            </option>
-          ))}
-        </select>
+        <MultiSelectFilter
+          label="BASE IRRF"
+          options={indBaseIRRFOptions}
+          selected={indBaseIRRFFilter}
+          onChange={setIndBaseIRRFFilter}
+        />
+        <MultiSelectFilter
+          label="BASE PS"
+          options={indBasePSOptions}
+          selected={indBasePSFilter}
+          onChange={setIndBasePSFilter}
+        />
         <span className="ml-auto font-mono text-audit-xs text-muted-foreground">
           {filtered.length.toLocaleString('pt-BR')} registros
         </span>
