@@ -54,7 +54,7 @@ function hasIRRFBaseIndicator(indicator: string): boolean {
 }
 
 function hasPSBaseIndicator(indicator: string): boolean {
-  return Boolean(indicator) && indicator !== '3';
+  return Boolean(indicator) && indicator !== '8';
 }
 
 function getSignedK300Value(record: RecordK300): number {

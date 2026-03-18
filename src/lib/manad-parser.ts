@@ -339,9 +339,13 @@ export const IND_BASE_IRRF_LABELS: Record<string, string> = {
 };
 
 export const IND_BASE_PS_LABELS: Record<string, string> = {
-  '1': 'Base salário mensal',
+  '1': 'Base sal. contribuição mensal',
   '2': 'Base 13º salário',
-  '3': 'Não é base',
-  '8': 'Outras bases',
+  '3': 'Valor descontado do segurado',
+  '4': 'Salário Família',
+  '5': 'Base Salário-Maternidade',
+  '6': 'Base exclusiva FGTS',
+  '7': 'Reduções da base',
+  '8': 'Não é base de cálculo',
   '9': 'Outras bases',
 };
