@@ -62,6 +62,7 @@ const Index = () => {
       case 'synthetic': return <SyntheticView file={file} />;
       case 'analytic': return <AnalyticView file={file} />;
       case 'control': return <ControlView file={file} />;
+      case 'validation': return <EmployeeValidationView file={file} />;
       case 'discrepancies': return <DiscrepancyView file={file} />;
       case 'comparison': return (
         <ComparisonView
