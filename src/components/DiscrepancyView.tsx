@@ -6,19 +6,24 @@ interface DiscrepancyViewProps {
   file: MANADFile;
 }
 
+const TYPE_LABELS: Record<Discrepancy['type'], string> = {
+  missing_k300_irrf: 'K300 AUSENTE · IRRF',
+  missing_k300_ps: 'K300 AUSENTE · PS',
+  missing_k250_irrf: 'K250 AUSENTE · IRRF',
+  missing_k250_ps: 'K250 AUSENTE · PS',
+  sum_mismatch_irrf: 'DIFERENÇA DE SOMA · IRRF',
+  sum_mismatch_ps: 'DIFERENÇA DE SOMA · PS',
+};
+
 function SeverityBadge({ severity }: { severity: Discrepancy['severity'] }) {
   const styles = {
-    critical: 'bg-destructive/20 text-destructive border-destructive/30',
-    warning: 'bg-warning/20 text-warning border-warning/30',
-    info: 'bg-primary/20 text-primary border-primary/30',
+    critical: 'border-destructive/30 bg-destructive/20 text-destructive',
+    warning: 'border-warning/30 bg-warning/20 text-warning',
+    info: 'border-primary/30 bg-primary/20 text-primary',
   };
   const labels = { critical: 'CRÍTICO', warning: 'ALERTA', info: 'INFO' };
 
-  return (
-    <span className={`font-mono text-audit-xs px-2 py-0.5 rounded-sm border ${styles[severity]}`}>
-      {labels[severity]}
-    </span>
-  );
+  return <span className={`rounded-sm border px-2 py-0.5 font-mono text-audit-xs ${styles[severity]}`}>{labels[severity]}</span>;
 }
 
 export function DiscrepancyView({ file }: DiscrepancyViewProps) {
@@ -28,106 +33,123 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
   const [deptFilter, setDeptFilter] = useState('');
   const [periodFilter, setPeriodFilter] = useState('');
   const [indFlFilter, setIndFlFilter] = useState('');
+  const [baseFilter, setBaseFilter] = useState('');
 
   const summary = useMemo(() => detectDiscrepancies(file), [file]);
 
   const periods = useMemo(() => {
-    const set = new Set<string>();
-    summary.discrepancies.forEach(d => set.add(d.period));
-    return Array.from(set).sort();
+    const values = new Set<string>();
+    summary.discrepancies.forEach((discrepancy) => values.add(discrepancy.period));
+    return Array.from(values).sort();
   }, [summary]);
 
   const indFlValues = useMemo(() => {
-    const set = new Set<string>();
-    summary.discrepancies.forEach(d => set.add(d.indFl));
-    return Array.from(set).sort();
+    const values = new Set<string>();
+    summary.discrepancies.forEach((discrepancy) => values.add(discrepancy.indFl));
+    return Array.from(values).sort();
   }, [summary]);
 
   const filtered = useMemo(() => {
-    return summary.discrepancies.filter((d) => {
-      if (severityFilter && d.severity !== severityFilter) return false;
-      if (typeFilter && d.type !== typeFilter) return false;
-      if (deptFilter && d.departmentCode !== deptFilter) return false;
-      if (periodFilter && d.period !== periodFilter) return false;
-      if (indFlFilter && d.indFl !== indFlFilter) return false;
+    return summary.discrepancies.filter((discrepancy) => {
+      if (severityFilter && discrepancy.severity !== severityFilter) return false;
+      if (typeFilter && discrepancy.type !== typeFilter) return false;
+      if (deptFilter && discrepancy.departmentCode !== deptFilter) return false;
+      if (periodFilter && discrepancy.period !== periodFilter) return false;
+      if (indFlFilter && discrepancy.indFl !== indFlFilter) return false;
+      if (baseFilter && discrepancy.baseType !== baseFilter) return false;
+
       if (search) {
-        const q = search.toLowerCase();
-        if (!d.employeeName.toLowerCase().includes(q) && !d.employeeCode.includes(q)) return false;
+        const query = search.toLowerCase();
+        if (!discrepancy.employeeName.toLowerCase().includes(query) && !discrepancy.employeeCode.toLowerCase().includes(query)) {
+          return false;
+        }
       }
+
       return true;
     });
-  }, [summary, severityFilter, typeFilter, deptFilter, periodFilter, indFlFilter, search]);
+  }, [summary, severityFilter, typeFilter, deptFilter, periodFilter, indFlFilter, baseFilter, search]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Summary cards */}
-      <div className="p-4 border-b border-border">
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border p-4">
         <div className="audit-label mb-3">ANÁLISE DE DISCREPÂNCIAS K250 × K300</div>
         <div className="grid grid-cols-4 gap-3">
-          <div className="surface border border-border p-3 rounded-sm">
+          <div className="surface rounded-sm border border-border p-3">
             <div className="audit-label mb-1">TOTAL</div>
             <div className="font-mono text-2xl text-foreground">{summary.total}</div>
           </div>
-          <div className="surface border border-destructive/30 p-3 rounded-sm">
+          <div className="surface rounded-sm border border-destructive/30 p-3">
             <div className="audit-label mb-1">CRÍTICOS</div>
             <div className="font-mono text-2xl text-destructive">{summary.critical}</div>
           </div>
-          <div className="surface border border-warning/30 p-3 rounded-sm">
+          <div className="surface rounded-sm border border-warning/30 p-3">
             <div className="audit-label mb-1">ALERTAS</div>
             <div className="font-mono text-2xl text-warning">{summary.warnings}</div>
           </div>
-          <div className="surface border border-primary/30 p-3 rounded-sm">
+          <div className="surface rounded-sm border border-primary/30 p-3">
             <div className="audit-label mb-1">INFO</div>
             <div className="font-mono text-2xl text-primary">{summary.info}</div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="p-3 border-b border-border flex gap-3 items-center flex-wrap">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border p-3">
         <input
           type="text"
           placeholder="Buscar funcionário..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground placeholder:text-muted-foreground max-w-xs outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setSearch(event.target.value)}
+          className="max-w-xs rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 placeholder:text-muted-foreground focus:border-primary/50"
         />
         <select
           value={deptFilter}
-          onChange={(e) => setDeptFilter(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setDeptFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
         >
           <option value="">TODOS DEPTOS</option>
-          {file.departments.map((d) => (
-            <option key={d.departmentCode} value={d.departmentCode}>
-              {d.departmentCode} - {d.departmentName}
+          {file.departments.map((department) => (
+            <option key={department.departmentCode} value={department.departmentCode}>
+              {department.departmentCode} - {department.departmentName}
             </option>
           ))}
         </select>
         <select
           value={periodFilter}
-          onChange={(e) => setPeriodFilter(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setPeriodFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
         >
           <option value="">TODOS PERÍODOS</option>
-          {periods.map((p) => (
-            <option key={p} value={p}>{p}</option>
+          {periods.map((period) => (
+            <option key={period} value={period}>
+              {period}
+            </option>
           ))}
         </select>
         <select
           value={indFlFilter}
-          onChange={(e) => setIndFlFilter(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setIndFlFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
         >
           <option value="">TODAS FOLHAS</option>
-          {indFlValues.map((v) => (
-            <option key={v} value={v}>{v} - {getIndFlLabel(v)}</option>
+          {indFlValues.map((value) => (
+            <option key={value} value={value}>
+              {value} - {getIndFlLabel(value)}
+            </option>
           ))}
         </select>
         <select
+          value={baseFilter}
+          onChange={(event) => setBaseFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
+        >
+          <option value="">TODAS BASES</option>
+          <option value="IRRF">BASE IRRF</option>
+          <option value="PS">BASE PS</option>
+        </select>
+        <select
           value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setSeverityFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
         >
           <option value="">TODAS SEVERIDADES</option>
           <option value="critical">CRÍTICO</option>
@@ -136,74 +158,79 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
         </select>
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="bg-surface border border-border rounded-sm px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none focus:border-primary/50 transition-colors duration-150"
+          onChange={(event) => setTypeFilter(event.target.value)}
+          className="rounded-sm border border-border bg-surface px-3 py-1.5 font-mono text-audit-sm text-foreground outline-none transition-colors duration-150 focus:border-primary/50"
         >
           <option value="">TODOS TIPOS</option>
-          <option value="missing_k300">K300 AUSENTE</option>
-          <option value="missing_k250">K250 AUSENTE</option>
-          <option value="sum_mismatch">DIFERENÇA DE SOMA</option>
+          {Object.entries(TYPE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
-        <span className="font-mono text-audit-xs text-muted-foreground ml-auto">
-          {filtered.length} discrepâncias
-        </span>
+        <span className="ml-auto font-mono text-audit-xs text-muted-foreground">{filtered.length} discrepâncias</span>
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-auto">
         {filtered.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex h-full items-center justify-center">
             <div className="text-center">
-              <div className="font-mono text-lg text-primary mb-2">✓ NENHUMA DISCREPÂNCIA</div>
+              <div className="mb-2 font-mono text-lg text-primary">✓ NENHUMA DISCREPÂNCIA</div>
               <div className="font-mono text-audit-sm text-muted-foreground">
-                Os registros K250 e K300 estão consistentes.
+                As bases IRRF e PS dos registros K250 e K300 estão consistentes.
               </div>
             </div>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="sticky top-0 bg-background z-10">
+            <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b border-border">
-                <th className="audit-label text-left p-2">SEVERIDADE</th>
-                <th className="audit-label text-left p-2">FUNCIONÁRIO</th>
-                <th className="audit-label text-left p-2">DEPTO</th>
-                <th className="audit-label text-left p-2">PERÍODO</th>
-                <th className="audit-label text-left p-2">FOLHA</th>
-                <th className="audit-label text-left p-2">DESCRIÇÃO</th>
-                <th className="audit-label text-right p-2">K250</th>
-                <th className="audit-label text-right p-2">K300</th>
-                <th className="audit-label text-right p-2">DIFF</th>
+                <th className="audit-label p-2 text-left">SEVERIDADE</th>
+                <th className="audit-label p-2 text-left">BASE</th>
+                <th className="audit-label p-2 text-left">TIPO</th>
+                <th className="audit-label p-2 text-left">FUNCIONÁRIO</th>
+                <th className="audit-label p-2 text-left">DEPTO</th>
+                <th className="audit-label p-2 text-left">PERÍODO</th>
+                <th className="audit-label p-2 text-left">FOLHA</th>
+                <th className="audit-label p-2 text-left">DESCRIÇÃO</th>
+                <th className="audit-label p-2 text-right">K250</th>
+                <th className="audit-label p-2 text-right">K300</th>
+                <th className="audit-label p-2 text-right">DIFF</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 500).map((d, i) => (
+              {filtered.slice(0, 500).map((discrepancy, index) => (
                 <tr
-                  key={i}
+                  key={`${discrepancy.type}-${discrepancy.employeeCode}-${index}`}
                   className={`border-b border-border/50 transition-colors duration-150 ${
-                    d.severity === 'critical' ? 'bg-destructive/5 hover:bg-destructive/10' :
-                    d.severity === 'warning' ? 'bg-warning/5 hover:bg-warning/10' :
-                    'hover:bg-accent/30'
+                    discrepancy.severity === 'critical'
+                      ? 'bg-destructive/5 hover:bg-destructive/10'
+                      : discrepancy.severity === 'warning'
+                        ? 'bg-warning/5 hover:bg-warning/10'
+                        : 'hover:bg-accent/30'
                   }`}
                 >
-                  <td className="p-2"><SeverityBadge severity={d.severity} /></td>
-                  <td className="font-mono text-audit-sm p-2 text-foreground">
-                    <div>{d.employeeName}</div>
-                    <div className="text-muted-foreground text-audit-xs">{d.employeeCode}</div>
+                  <td className="p-2"><SeverityBadge severity={discrepancy.severity} /></td>
+                  <td className="p-2 font-mono text-audit-xs text-foreground">{discrepancy.baseType}</td>
+                  <td className="p-2 font-mono text-audit-xs text-muted-foreground">{TYPE_LABELS[discrepancy.type]}</td>
+                  <td className="p-2 font-mono text-audit-sm text-foreground">
+                    <div>{discrepancy.employeeName}</div>
+                    <div className="text-audit-xs text-muted-foreground">{discrepancy.employeeCode}</div>
                   </td>
-                  <td className="font-mono text-audit-sm p-2 text-muted-foreground">{d.departmentCode}</td>
-                  <td className="font-mono text-audit-sm p-2 text-muted-foreground">{d.period}</td>
-                  <td className="font-mono text-audit-xs p-2 text-muted-foreground" title={getIndFlLabel(d.indFl)}>
-                    {d.indFl} - {getIndFlLabel(d.indFl)}
+                  <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.departmentCode}</td>
+                  <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.period}</td>
+                  <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={getIndFlLabel(discrepancy.indFl)}>
+                    {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
                   </td>
-                  <td className="font-mono text-audit-xs p-2 text-foreground max-w-[300px]">{d.description}</td>
-                  <td className="font-mono text-audit-sm p-2 text-right text-foreground">
-                    {d.k250Value ? `R$ ${d.k250Value}` : '—'}
+                  <td className="max-w-[320px] p-2 font-mono text-audit-xs text-foreground">{discrepancy.description}</td>
+                  <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                    {discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
                   </td>
-                  <td className="font-mono text-audit-sm p-2 text-right text-foreground">
-                    {d.k300Sum ? `R$ ${d.k300Sum}` : '—'}
+                  <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                    {discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
                   </td>
-                  <td className="font-mono text-audit-sm p-2 text-right text-destructive font-semibold">
-                    {d.difference ? `R$ ${d.difference}` : '—'}
+                  <td className="p-2 text-right font-mono text-audit-sm font-semibold text-destructive">
+                    {discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
                   </td>
                 </tr>
               ))}
