@@ -137,7 +137,7 @@ export function EmployeeValidationView({ file }: EmployeeValidationViewProps) {
       const signed = parseValue(r.value) * getRubrMultiplier(r.indRubr);
       result.totalSigned += signed;
       if (r.indBaseIRRF && r.indBaseIRRF !== '3') { result.irrfTotal += signed; result.irrfCount++; }
-      if (r.indBasePS && r.indBasePS !== '3') { result.psTotal += signed; result.psCount++; }
+      if (r.indBasePS && r.indBasePS !== '8') { result.psTotal += signed; result.psCount++; }
     });
     return result;
   }, [filteredK300]);

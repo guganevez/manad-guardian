@@ -91,22 +91,50 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
     <div className="flex h-full flex-col">
       <div className="border-b border-border p-4">
         <div className="audit-label mb-3">ANÁLISE DE DISCREPÂNCIAS K250 × K300</div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid gap-3 xl:grid-cols-[1.1fr_1fr_1fr]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="surface rounded-sm border border-border p-3">
+              <div className="audit-label mb-1">TOTAL GERAL</div>
+              <div className="font-mono text-2xl text-foreground">{filtered.length}</div>
+            </div>
+            <div className="surface rounded-sm border border-destructive/30 p-3">
+              <div className="audit-label mb-1">CRÍTICOS</div>
+              <div className="font-mono text-2xl text-destructive">
+                {filtered.filter((discrepancy) => discrepancy.severity === 'critical').length}
+              </div>
+            </div>
+            <div className="surface rounded-sm border border-warning/30 p-3">
+              <div className="audit-label mb-1">ALERTAS</div>
+              <div className="font-mono text-2xl text-warning">
+                {filtered.filter((discrepancy) => discrepancy.severity === 'warning').length}
+              </div>
+            </div>
+            <div className="surface rounded-sm border border-primary/30 p-3">
+              <div className="audit-label mb-1">INFO</div>
+              <div className="font-mono text-2xl text-primary">
+                {filtered.filter((discrepancy) => discrepancy.severity === 'info').length}
+              </div>
+            </div>
+          </div>
+
           <div className="surface rounded-sm border border-border p-3">
-            <div className="audit-label mb-1">TOTAL</div>
-            <div className="font-mono text-2xl text-foreground">{summary.total}</div>
+            <div className="audit-label mb-2">BASE IRRF</div>
+            <div className="grid grid-cols-2 gap-2 font-mono text-audit-sm">
+              <div className="text-foreground">Total: {baseSummary.IRRF.total}</div>
+              <div className="text-destructive">Críticos: {baseSummary.IRRF.critical}</div>
+              <div className="text-warning">Alertas: {baseSummary.IRRF.warning}</div>
+              <div className="text-primary">Info: {baseSummary.IRRF.info}</div>
+            </div>
           </div>
-          <div className="surface rounded-sm border border-destructive/30 p-3">
-            <div className="audit-label mb-1">CRÍTICOS</div>
-            <div className="font-mono text-2xl text-destructive">{summary.critical}</div>
-          </div>
-          <div className="surface rounded-sm border border-warning/30 p-3">
-            <div className="audit-label mb-1">ALERTAS</div>
-            <div className="font-mono text-2xl text-warning">{summary.warnings}</div>
-          </div>
-          <div className="surface rounded-sm border border-primary/30 p-3">
-            <div className="audit-label mb-1">INFO</div>
-            <div className="font-mono text-2xl text-primary">{summary.info}</div>
+
+          <div className="surface rounded-sm border border-border p-3">
+            <div className="audit-label mb-2">BASE PS</div>
+            <div className="grid grid-cols-2 gap-2 font-mono text-audit-sm">
+              <div className="text-foreground">Total: {baseSummary.PS.total}</div>
+              <div className="text-destructive">Críticos: {baseSummary.PS.critical}</div>
+              <div className="text-warning">Alertas: {baseSummary.PS.warning}</div>
+              <div className="text-primary">Info: {baseSummary.PS.info}</div>
+            </div>
           </div>
         </div>
       </div>
