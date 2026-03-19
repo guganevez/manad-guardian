@@ -230,6 +230,43 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
 
   const COL_SPAN = 14;
 
+  // Group filtered discrepancies by employee for summary rows
+  const groupedByEmployee = useMemo(() => {
+    const groups: { employeeCode: string; employeeName: string; items: { discrepancy: Discrepancy; globalIndex: number }[]; totals: { k250IRRF: number; k300IRRF: number; difIRRF: number; k250PS: number; k300PS: number; difPS: number } }[] = [];
+    const map = new Map<string, typeof groups[number]>();
+
+    filtered.forEach((d, idx) => {
+      let group = map.get(d.employeeCode);
+      if (!group) {
+        group = {
+          employeeCode: d.employeeCode,
+          employeeName: d.employeeName,
+          items: [],
+          totals: { k250IRRF: 0, k300IRRF: 0, difIRRF: 0, k250PS: 0, k300PS: 0, difPS: 0 },
+        };
+        map.set(d.employeeCode, group);
+        groups.push(group);
+      }
+      group.items.push({ discrepancy: d, globalIndex: idx });
+
+      const k250 = parseValue(d.k250Value || '');
+      const k300 = parseValue(d.k300Sum || '');
+      const dif = parseValue(d.difference || '');
+
+      if (d.baseType === 'IRRF') {
+        group.totals.k250IRRF += k250;
+        group.totals.k300IRRF += k300;
+        group.totals.difIRRF += dif;
+      } else {
+        group.totals.k250PS += k250;
+        group.totals.k300PS += k300;
+        group.totals.difPS += dif;
+      }
+    });
+
+    return groups;
+  }, [filtered]);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border p-4">
@@ -395,72 +432,106 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 500).map((discrepancy, index) => {
-                const rowKey = makeRowKey(discrepancy, index);
-                const isExpanded = expandedKey === rowKey;
-                const isIRRF = discrepancy.baseType === 'IRRF';
+              {groupedByEmployee.map((group) => (
+                <>
+                  {group.items.map(({ discrepancy, globalIndex }) => {
+                    const rowKey = makeRowKey(discrepancy, globalIndex);
+                    const isExpanded = expandedKey === rowKey;
+                    const isIRRF = discrepancy.baseType === 'IRRF';
 
-                return (
-                  <>
-                    <tr
-                      key={rowKey}
-                      onClick={() => toggleExpanded(rowKey)}
-                      className={`cursor-pointer border-b border-border/50 transition-colors duration-150 ${
-                        isExpanded
-                          ? 'bg-accent/30'
-                          : discrepancy.severity === 'critical'
-                            ? 'bg-destructive/5 hover:bg-destructive/10'
-                            : discrepancy.severity === 'warning'
-                              ? 'bg-warning/5 hover:bg-warning/10'
-                              : 'hover:bg-accent/30'
-                      }`}
-                    >
-                      <td className="p-2 font-mono text-audit-xs text-muted-foreground">
-                        {isExpanded ? '▼' : '▶'}
-                      </td>
-                      <td className="p-2"><SeverityBadge severity={discrepancy.severity} /></td>
-                      <td className="p-2 font-mono text-audit-xs text-foreground">{discrepancy.baseType}</td>
-                      <td className="p-2 font-mono text-audit-xs text-muted-foreground">{TYPE_LABELS[discrepancy.type]}</td>
-                      <td className="p-2 font-mono text-audit-sm text-foreground">
-                        <div>{discrepancy.employeeName}</div>
-                        <div className="text-audit-xs text-muted-foreground">{discrepancy.employeeCode}</div>
-                      </td>
-                      <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.departmentCode}</td>
-                      <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.period}</td>
-                      <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={getIndFlLabel(discrepancy.indFl)}>
-                        {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
-                      </td>
-                      <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                        {isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                        {isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
-                      </td>
-                      <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        {isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-audit-sm text-primary">
-                        {!isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-audit-sm text-primary">
-                        {!isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
-                      </td>
-                      <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${!isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        {!isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <ExpandedK300Row
-                        key={`${rowKey}-detail`}
-                        records={getLinkedK300(discrepancy)}
-                        baseType={discrepancy.baseType}
-                        eventMap={eventMap}
-                        colSpan={COL_SPAN}
-                      />
-                    )}
-                  </>
-                );
-              })}
+                    return (
+                      <>
+                        <tr
+                          key={rowKey}
+                          onClick={() => toggleExpanded(rowKey)}
+                          className={`cursor-pointer border-b border-border/50 transition-colors duration-150 ${
+                            isExpanded
+                              ? 'bg-accent/30'
+                              : discrepancy.severity === 'critical'
+                                ? 'bg-destructive/5 hover:bg-destructive/10'
+                                : discrepancy.severity === 'warning'
+                                  ? 'bg-warning/5 hover:bg-warning/10'
+                                  : 'hover:bg-accent/30'
+                          }`}
+                        >
+                          <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                            {isExpanded ? '▼' : '▶'}
+                          </td>
+                          <td className="p-2"><SeverityBadge severity={discrepancy.severity} /></td>
+                          <td className="p-2 font-mono text-audit-xs text-foreground">{discrepancy.baseType}</td>
+                          <td className="p-2 font-mono text-audit-xs text-muted-foreground">{TYPE_LABELS[discrepancy.type]}</td>
+                          <td className="p-2 font-mono text-audit-sm text-foreground">
+                            <div>{discrepancy.employeeName}</div>
+                            <div className="text-audit-xs text-muted-foreground">{discrepancy.employeeCode}</div>
+                          </td>
+                          <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.departmentCode}</td>
+                          <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.period}</td>
+                          <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={getIndFlLabel(discrepancy.indFl)}>
+                            {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
+                          </td>
+                          <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                            {isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
+                          </td>
+                          <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                            {isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
+                          </td>
+                          <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
+                          </td>
+                          <td className="p-2 text-right font-mono text-audit-sm text-primary">
+                            {!isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
+                          </td>
+                          <td className="p-2 text-right font-mono text-audit-sm text-primary">
+                            {!isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
+                          </td>
+                          <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${!isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {!isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <ExpandedK300Row
+                            key={`${rowKey}-detail`}
+                            records={getLinkedK300(discrepancy)}
+                            baseType={discrepancy.baseType}
+                            eventMap={eventMap}
+                            colSpan={COL_SPAN}
+                          />
+                        )}
+                      </>
+                    );
+                  })}
+                  {/* Summary row per employee */}
+                  <tr key={`summary-${group.employeeCode}`} className="border-b-2 border-border bg-accent/20">
+                    <td className="p-2" />
+                    <td colSpan={3} className="p-2 font-mono text-audit-xs font-bold uppercase text-muted-foreground">
+                      RESUMO
+                    </td>
+                    <td className="p-2 font-mono text-audit-sm font-bold text-foreground">
+                      <div>{group.employeeName}</div>
+                      <div className="text-audit-xs text-muted-foreground">{group.employeeCode} · {group.items.length} discrepância(s)</div>
+                    </td>
+                    <td colSpan={3} className="p-2" />
+                    <td className="p-2 text-right font-mono text-audit-sm font-bold text-foreground">
+                      {group.totals.k250IRRF ? `R$ ${group.totals.k250IRRF.toFixed(2)}` : '—'}
+                    </td>
+                    <td className="p-2 text-right font-mono text-audit-sm font-bold text-foreground">
+                      {group.totals.k300IRRF ? `R$ ${group.totals.k300IRRF.toFixed(2)}` : '—'}
+                    </td>
+                    <td className={`p-2 text-right font-mono text-audit-sm font-bold ${group.totals.difIRRF ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {group.totals.difIRRF ? `R$ ${group.totals.difIRRF.toFixed(2)}` : '—'}
+                    </td>
+                    <td className="p-2 text-right font-mono text-audit-sm font-bold text-primary">
+                      {group.totals.k250PS ? `R$ ${group.totals.k250PS.toFixed(2)}` : '—'}
+                    </td>
+                    <td className="p-2 text-right font-mono text-audit-sm font-bold text-primary">
+                      {group.totals.k300PS ? `R$ ${group.totals.k300PS.toFixed(2)}` : '—'}
+                    </td>
+                    <td className={`p-2 text-right font-mono text-audit-sm font-bold ${group.totals.difPS ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {group.totals.difPS ? `R$ ${group.totals.difPS.toFixed(2)}` : '—'}
+                    </td>
+                  </tr>
+                </>
+              ))}
             </tbody>
           </table>
         )}
