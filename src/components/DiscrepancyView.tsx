@@ -228,7 +228,7 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
     setExpandedKey((prev) => (prev === key ? null : key));
   }, []);
 
-  const COL_SPAN = 11;
+  const COL_SPAN = 14;
 
   return (
     <div className="flex h-full flex-col">
@@ -374,23 +374,31 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b border-border">
-                <th className="audit-label w-6 p-2 text-left"></th>
-                <th className="audit-label p-2 text-left">SEVERIDADE</th>
-                <th className="audit-label p-2 text-left">BASE</th>
-                <th className="audit-label p-2 text-left">TIPO</th>
-                <th className="audit-label p-2 text-left">FUNCIONÁRIO</th>
-                <th className="audit-label p-2 text-left">DEPTO</th>
-                <th className="audit-label p-2 text-left">PERÍODO</th>
-                <th className="audit-label p-2 text-left">FOLHA</th>
+                <th className="audit-label w-6 p-2 text-left" rowSpan={2}></th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>SEVERIDADE</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>BASE</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>TIPO</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>FUNCIONÁRIO</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>DEPTO</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>PERÍODO</th>
+                <th className="audit-label p-2 text-left" rowSpan={2}>FOLHA</th>
+                <th className="audit-label p-2 text-center" colSpan={3}>BASE IRRF</th>
+                <th className="audit-label p-2 text-center" colSpan={3}>BASE PS</th>
+              </tr>
+              <tr className="border-b border-border">
                 <th className="audit-label p-2 text-right">K250</th>
                 <th className="audit-label p-2 text-right">K300</th>
-                <th className="audit-label p-2 text-right">DIFF</th>
+                <th className="audit-label p-2 text-right">DIF</th>
+                <th className="audit-label p-2 text-right">K250</th>
+                <th className="audit-label p-2 text-right">K300</th>
+                <th className="audit-label p-2 text-right">DIF</th>
               </tr>
             </thead>
             <tbody>
               {filtered.slice(0, 500).map((discrepancy, index) => {
                 const rowKey = makeRowKey(discrepancy, index);
                 const isExpanded = expandedKey === rowKey;
+                const isIRRF = discrepancy.baseType === 'IRRF';
 
                 return (
                   <>
@@ -423,13 +431,22 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
                         {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
                       </td>
                       <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                        {discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
+                        {isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
                       </td>
                       <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                        {discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
+                        {isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
                       </td>
-                      <td className="p-2 text-right font-mono text-audit-sm font-semibold text-destructive">
-                        {discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
+                      <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
+                      </td>
+                      <td className="p-2 text-right font-mono text-audit-sm text-primary">
+                        {!isIRRF && discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
+                      </td>
+                      <td className="p-2 text-right font-mono text-audit-sm text-primary">
+                        {!isIRRF && discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
+                      </td>
+                      <td className={`p-2 text-right font-mono text-audit-sm font-semibold ${!isIRRF && discrepancy.difference ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {!isIRRF && discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
                       </td>
                     </tr>
                     {isExpanded && (
