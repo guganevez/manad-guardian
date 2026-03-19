@@ -271,11 +271,11 @@ export function K250LinkedItemsPanel({
                         {record.indRubr} - {IND_RUBR_LABELS[record.indRubr] || record.indRubr}
                       </span>
                     </td>
-                    <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_IRRF_LABELS[record.indBaseIRRF]}>
-                      {record.indBaseIRRF || '—'}
+                    <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                      {record.indBaseIRRF ? `${record.indBaseIRRF} - ${IND_BASE_IRRF_LABELS[record.indBaseIRRF] || record.indBaseIRRF}` : '—'}
                     </td>
-                    <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_PS_LABELS[record.indBasePS]}>
-                      {record.indBasePS || '—'}
+                    <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                      {record.indBasePS ? `${record.indBasePS} - ${IND_BASE_PS_LABELS[record.indBasePS] || record.indBasePS}` : '—'}
                     </td>
                   </tr>
                 );
