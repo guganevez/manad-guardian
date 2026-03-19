@@ -1,5 +1,12 @@
-import { useState, useMemo } from 'react';
-import { MANADFile, getIndFlLabel } from '@/lib/manad-parser';
+import { useState, useMemo, useCallback } from 'react';
+import {
+  MANADFile,
+  RecordK300,
+  getIndFlLabel,
+  IND_RUBR_LABELS,
+  IND_BASE_IRRF_LABELS,
+  IND_BASE_PS_LABELS,
+} from '@/lib/manad-parser';
 import { detectDiscrepancies, Discrepancy } from '@/lib/discrepancy-engine';
 
 interface DiscrepancyViewProps {
@@ -26,6 +33,109 @@ function SeverityBadge({ severity }: { severity: Discrepancy['severity'] }) {
   return <span className={`rounded-sm border px-2 py-0.5 font-mono text-audit-xs ${styles[severity]}`}>{labels[severity]}</span>;
 }
 
+function parseValue(value: string): number {
+  if (!value) return 0;
+  return parseFloat(value.replace(',', '.')) || 0;
+}
+
+function getRubrMultiplier(indRubr: string): number {
+  if (indRubr === 'P') return 1;
+  if (indRubr === 'D') return -1;
+  return 0;
+}
+
+function getSignedValue(record: RecordK300): number {
+  return parseValue(record.value) * getRubrMultiplier(record.indRubr);
+}
+
+function hasBaseIndicator(record: RecordK300, baseType: 'IRRF' | 'PS'): boolean {
+  if (baseType === 'IRRF') return Boolean(record.indBaseIRRF) && record.indBaseIRRF !== '3';
+  return Boolean(record.indBasePS) && record.indBasePS !== '8';
+}
+
+interface ExpandedK300RowProps {
+  records: RecordK300[];
+  baseType: 'IRRF' | 'PS';
+  eventMap: Map<string, string>;
+  colSpan: number;
+}
+
+function ExpandedK300Row({ records, baseType, eventMap, colSpan }: ExpandedK300RowProps) {
+  const filtered = records.filter((r) => hasBaseIndicator(r, baseType));
+
+  const total = filtered.reduce((sum, r) => sum + getSignedValue(r), 0);
+
+  if (filtered.length === 0) {
+    return (
+      <tr className="bg-accent/10">
+        <td colSpan={colSpan} className="px-6 py-3 font-mono text-audit-xs text-muted-foreground">
+          Nenhum item K300 com base {baseType} encontrado para este funcionário/período/folha.
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      <tr className="bg-accent/10">
+        <td colSpan={colSpan} className="px-4 py-0">
+          <div className="py-2">
+            <div className="mb-2 flex items-center gap-4">
+              <span className="font-mono text-audit-xs text-muted-foreground">
+                ITENS K300 · BASE {baseType} · {filtered.length} registros
+              </span>
+              <span className={`font-mono text-audit-sm font-semibold ${total >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                SOMA: R$ {total.toFixed(2)}
+              </span>
+            </div>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="px-2 py-1 text-left font-mono text-[9px] uppercase text-muted-foreground">EVENTO</th>
+                  <th className="px-2 py-1 text-left font-mono text-[9px] uppercase text-muted-foreground">DESCRIÇÃO</th>
+                  <th className="px-2 py-1 text-right font-mono text-[9px] uppercase text-muted-foreground">VALOR</th>
+                  <th className="px-2 py-1 text-right font-mono text-[9px] uppercase text-muted-foreground">C/ SINAL</th>
+                  <th className="px-2 py-1 text-left font-mono text-[9px] uppercase text-muted-foreground">RUBRICA</th>
+                  <th className="px-2 py-1 text-left font-mono text-[9px] uppercase text-muted-foreground">BASE IRRF</th>
+                  <th className="px-2 py-1 text-left font-mono text-[9px] uppercase text-muted-foreground">BASE PS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((record, idx) => {
+                  const signed = getSignedValue(record);
+                  return (
+                    <tr key={`${record.eventCode}-${idx}`} className="border-b border-border/30">
+                      <td className="px-2 py-1 font-mono text-audit-xs text-foreground">{record.eventCode}</td>
+                      <td className="max-w-[220px] truncate px-2 py-1 font-mono text-audit-xs text-muted-foreground">
+                        {eventMap.get(record.eventCode) || '—'}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono text-audit-xs text-foreground">R$ {record.value}</td>
+                      <td className={`px-2 py-1 text-right font-mono text-audit-xs ${signed >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                        R$ {signed.toFixed(2)}
+                      </td>
+                      <td className="px-2 py-1 font-mono text-audit-xs">
+                        <span className={record.indRubr === 'P' ? 'text-primary' : record.indRubr === 'D' ? 'text-destructive' : 'text-muted-foreground'}>
+                          {record.indRubr} - {IND_RUBR_LABELS[record.indRubr] || record.indRubr}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_IRRF_LABELS[record.indBaseIRRF]}>
+                        {record.indBaseIRRF || '—'}
+                      </td>
+                      <td className="px-2 py-1 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_PS_LABELS[record.indBasePS]}>
+                        {record.indBasePS || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </>
+  );
+}
+
 export function DiscrepancyView({ file }: DiscrepancyViewProps) {
   const [severityFilter, setSeverityFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -34,8 +144,15 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
   const [periodFilter, setPeriodFilter] = useState('');
   const [indFlFilter, setIndFlFilter] = useState('');
   const [baseFilter, setBaseFilter] = useState('');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const summary = useMemo(() => detectDiscrepancies(file), [file]);
+
+  const eventMap = useMemo(() => {
+    const map = new Map<string, string>();
+    file.events.forEach((e) => map.set(e.eventCode, e.eventName));
+    return map;
+  }, [file.events]);
 
   const periods = useMemo(() => {
     const values = new Set<string>();
@@ -86,6 +203,32 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
 
     return metrics;
   }, [filtered]);
+
+  // Pre-index K300 records by the same key used in discrepancy engine
+  const k300Index = useMemo(() => {
+    const map = new Map<string, RecordK300[]>();
+    for (const record of file.analyticData) {
+      const key = `${record.employeeCode}|${record.departmentCode}|${record.period}|${record.indFl}`;
+      const list = map.get(key) || [];
+      list.push(record);
+      map.set(key, list);
+    }
+    return map;
+  }, [file.analyticData]);
+
+  const makeRowKey = useCallback((d: Discrepancy, index: number) =>
+    `${d.type}-${d.employeeCode}-${d.departmentCode}-${d.period}-${d.indFl}-${index}`, []);
+
+  const getLinkedK300 = useCallback((d: Discrepancy) => {
+    const key = `${d.employeeCode}|${d.departmentCode}|${d.period}|${d.indFl}`;
+    return k300Index.get(key) || [];
+  }, [k300Index]);
+
+  const toggleExpanded = useCallback((key: string) => {
+    setExpandedKey((prev) => (prev === key ? null : key));
+  }, []);
+
+  const COL_SPAN = 11;
 
   return (
     <div className="flex h-full flex-col">
@@ -231,6 +374,7 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b border-border">
+                <th className="audit-label w-6 p-2 text-left"></th>
                 <th className="audit-label p-2 text-left">SEVERIDADE</th>
                 <th className="audit-label p-2 text-left">BASE</th>
                 <th className="audit-label p-2 text-left">TIPO</th>
@@ -238,48 +382,68 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
                 <th className="audit-label p-2 text-left">DEPTO</th>
                 <th className="audit-label p-2 text-left">PERÍODO</th>
                 <th className="audit-label p-2 text-left">FOLHA</th>
-                <th className="audit-label p-2 text-left">DESCRIÇÃO</th>
                 <th className="audit-label p-2 text-right">K250</th>
                 <th className="audit-label p-2 text-right">K300</th>
                 <th className="audit-label p-2 text-right">DIFF</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 500).map((discrepancy, index) => (
-                <tr
-                  key={`${discrepancy.type}-${discrepancy.employeeCode}-${index}`}
-                  className={`border-b border-border/50 transition-colors duration-150 ${
-                    discrepancy.severity === 'critical'
-                      ? 'bg-destructive/5 hover:bg-destructive/10'
-                      : discrepancy.severity === 'warning'
-                        ? 'bg-warning/5 hover:bg-warning/10'
-                        : 'hover:bg-accent/30'
-                  }`}
-                >
-                  <td className="p-2"><SeverityBadge severity={discrepancy.severity} /></td>
-                  <td className="p-2 font-mono text-audit-xs text-foreground">{discrepancy.baseType}</td>
-                  <td className="p-2 font-mono text-audit-xs text-muted-foreground">{TYPE_LABELS[discrepancy.type]}</td>
-                  <td className="p-2 font-mono text-audit-sm text-foreground">
-                    <div>{discrepancy.employeeName}</div>
-                    <div className="text-audit-xs text-muted-foreground">{discrepancy.employeeCode}</div>
-                  </td>
-                  <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.departmentCode}</td>
-                  <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.period}</td>
-                  <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={getIndFlLabel(discrepancy.indFl)}>
-                    {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
-                  </td>
-                  <td className="max-w-[320px] p-2 font-mono text-audit-xs text-foreground">{discrepancy.description}</td>
-                  <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                    {discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
-                  </td>
-                  <td className="p-2 text-right font-mono text-audit-sm text-foreground">
-                    {discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
-                  </td>
-                  <td className="p-2 text-right font-mono text-audit-sm font-semibold text-destructive">
-                    {discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
-                  </td>
-                </tr>
-              ))}
+              {filtered.slice(0, 500).map((discrepancy, index) => {
+                const rowKey = makeRowKey(discrepancy, index);
+                const isExpanded = expandedKey === rowKey;
+
+                return (
+                  <>
+                    <tr
+                      key={rowKey}
+                      onClick={() => toggleExpanded(rowKey)}
+                      className={`cursor-pointer border-b border-border/50 transition-colors duration-150 ${
+                        isExpanded
+                          ? 'bg-accent/30'
+                          : discrepancy.severity === 'critical'
+                            ? 'bg-destructive/5 hover:bg-destructive/10'
+                            : discrepancy.severity === 'warning'
+                              ? 'bg-warning/5 hover:bg-warning/10'
+                              : 'hover:bg-accent/30'
+                      }`}
+                    >
+                      <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                        {isExpanded ? '▼' : '▶'}
+                      </td>
+                      <td className="p-2"><SeverityBadge severity={discrepancy.severity} /></td>
+                      <td className="p-2 font-mono text-audit-xs text-foreground">{discrepancy.baseType}</td>
+                      <td className="p-2 font-mono text-audit-xs text-muted-foreground">{TYPE_LABELS[discrepancy.type]}</td>
+                      <td className="p-2 font-mono text-audit-sm text-foreground">
+                        <div>{discrepancy.employeeName}</div>
+                        <div className="text-audit-xs text-muted-foreground">{discrepancy.employeeCode}</div>
+                      </td>
+                      <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.departmentCode}</td>
+                      <td className="p-2 font-mono text-audit-sm text-muted-foreground">{discrepancy.period}</td>
+                      <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={getIndFlLabel(discrepancy.indFl)}>
+                        {discrepancy.indFl} - {getIndFlLabel(discrepancy.indFl)}
+                      </td>
+                      <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                        {discrepancy.k250Value ? `R$ ${discrepancy.k250Value}` : '—'}
+                      </td>
+                      <td className="p-2 text-right font-mono text-audit-sm text-foreground">
+                        {discrepancy.k300Sum ? `R$ ${discrepancy.k300Sum}` : '—'}
+                      </td>
+                      <td className="p-2 text-right font-mono text-audit-sm font-semibold text-destructive">
+                        {discrepancy.difference ? `R$ ${discrepancy.difference}` : '—'}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <ExpandedK300Row
+                        key={`${rowKey}-detail`}
+                        records={getLinkedK300(discrepancy)}
+                        baseType={discrepancy.baseType}
+                        eventMap={eventMap}
+                        colSpan={COL_SPAN}
+                      />
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         )}
