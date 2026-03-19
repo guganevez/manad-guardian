@@ -230,6 +230,43 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
 
   const COL_SPAN = 14;
 
+  // Group filtered discrepancies by employee for summary rows
+  const groupedByEmployee = useMemo(() => {
+    const groups: { employeeCode: string; employeeName: string; items: { discrepancy: Discrepancy; globalIndex: number }[]; totals: { k250IRRF: number; k300IRRF: number; difIRRF: number; k250PS: number; k300PS: number; difPS: number } }[] = [];
+    const map = new Map<string, typeof groups[number]>();
+
+    filtered.forEach((d, idx) => {
+      let group = map.get(d.employeeCode);
+      if (!group) {
+        group = {
+          employeeCode: d.employeeCode,
+          employeeName: d.employeeName,
+          items: [],
+          totals: { k250IRRF: 0, k300IRRF: 0, difIRRF: 0, k250PS: 0, k300PS: 0, difPS: 0 },
+        };
+        map.set(d.employeeCode, group);
+        groups.push(group);
+      }
+      group.items.push({ discrepancy: d, globalIndex: idx });
+
+      const k250 = parseValue(d.k250Value || '');
+      const k300 = parseValue(d.k300Sum || '');
+      const dif = parseValue(d.difference || '');
+
+      if (d.baseType === 'IRRF') {
+        group.totals.k250IRRF += k250;
+        group.totals.k300IRRF += k300;
+        group.totals.difIRRF += dif;
+      } else {
+        group.totals.k250PS += k250;
+        group.totals.k300PS += k300;
+        group.totals.difPS += dif;
+      }
+    });
+
+    return groups;
+  }, [filtered]);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border p-4">
