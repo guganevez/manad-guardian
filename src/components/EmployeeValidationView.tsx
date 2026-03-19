@@ -397,11 +397,11 @@ export function EmployeeValidationView({ file }: EmployeeValidationViewProps) {
                                 {r.indRubr} - {IND_RUBR_LABELS[r.indRubr] || r.indRubr}
                               </span>
                             </td>
-                            <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_IRRF_LABELS[r.indBaseIRRF]}>
-                              {r.indBaseIRRF || '—'}
+                            <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                              {r.indBaseIRRF ? `${r.indBaseIRRF} - ${IND_BASE_IRRF_LABELS[r.indBaseIRRF] || r.indBaseIRRF}` : '—'}
                             </td>
-                            <td className="p-2 font-mono text-audit-xs text-muted-foreground" title={IND_BASE_PS_LABELS[r.indBasePS]}>
-                              {r.indBasePS || '—'}
+                            <td className="p-2 font-mono text-audit-xs text-muted-foreground">
+                              {r.indBasePS ? `${r.indBasePS} - ${IND_BASE_PS_LABELS[r.indBasePS] || r.indBasePS}` : '—'}
                             </td>
                           </tr>
                         );
