@@ -69,6 +69,24 @@ export function DiscrepancyView({ file }: DiscrepancyViewProps) {
     });
   }, [summary, severityFilter, typeFilter, deptFilter, periodFilter, indFlFilter, baseFilter, search]);
 
+  const baseSummary = useMemo(() => {
+    const createMetrics = () => ({ total: 0, critical: 0, warning: 0, info: 0 });
+    const metrics = {
+      IRRF: createMetrics(),
+      PS: createMetrics(),
+    } satisfies Record<Discrepancy['baseType'], { total: number; critical: number; warning: number; info: number }>;
+
+    filtered.forEach((discrepancy) => {
+      const bucket = metrics[discrepancy.baseType];
+      bucket.total += 1;
+      if (discrepancy.severity === 'critical') bucket.critical += 1;
+      if (discrepancy.severity === 'warning') bucket.warning += 1;
+      if (discrepancy.severity === 'info') bucket.info += 1;
+    });
+
+    return metrics;
+  }, [filtered]);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border p-4">
