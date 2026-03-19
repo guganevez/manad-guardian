@@ -85,7 +85,7 @@ export function K250LinkedItemsPanel({
         result.irrfCount += 1;
         result.irrfTotal += signed;
       }
-      if (record.indBasePS && record.indBasePS !== '3') {
+      if (record.indBasePS && record.indBasePS !== '8') {
         result.psCount += 1;
         result.psTotal += signed;
       }
