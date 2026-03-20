@@ -74,12 +74,21 @@ export function K250LinkedItemsPanel({
     });
   }, [linkedRecords, baseIRRFFilter, basePSFilter, rubrFilter]);
 
-  const totals = useMemo(() => {
-    const result = { count: filtered.length, totalSigned: 0, irrfTotal: 0, psTotal: 0, irrfCount: 0, psCount: 0 };
-
+  // TOTAL SELEÇÃO: influenced by filters
+  const filteredTotal = useMemo(() => {
+    let totalSigned = 0;
     filtered.forEach((record) => {
+      totalSigned += getSignedValue(record);
+    });
+    return { count: filtered.length, totalSigned };
+  }, [filtered]);
+
+  // Base totals: NEVER influenced by filters, always use full linkedRecords
+  const baseTotals = useMemo(() => {
+    const result = { irrfTotal: 0, psTotal: 0, irrfCount: 0, psCount: 0 };
+
+    linkedRecords.forEach((record) => {
       const signed = getSignedValue(record);
-      result.totalSigned += signed;
 
       if (record.indBaseIRRF && record.indBaseIRRF !== '3') {
         result.irrfCount += 1;
@@ -92,12 +101,12 @@ export function K250LinkedItemsPanel({
     });
 
     return result;
-  }, [filtered]);
+  }, [linkedRecords]);
 
   const k250BaseIRRF = parseValue(selectedRecord.vlBaseIRRF);
   const k250BasePS = parseValue(selectedRecord.vlBasePS);
-  const diffIRRF = k250BaseIRRF - totals.irrfTotal;
-  const diffPS = k250BasePS - totals.psTotal;
+  const diffIRRF = k250BaseIRRF - baseTotals.irrfTotal;
+  const diffPS = k250BasePS - baseTotals.psTotal;
 
   return (
     <div className="border-t border-border surface">
@@ -189,22 +198,22 @@ export function K250LinkedItemsPanel({
       <div className="grid gap-3 border-b border-border p-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-sm border border-border bg-background/60 p-3">
           <div className="audit-label mb-1">TOTAL SELEÇÃO</div>
-          <div className={`font-mono text-lg ${totals.totalSigned >= 0 ? 'text-primary' : 'text-destructive'}`}>
-            R$ {totals.totalSigned.toFixed(2)}
+          <div className={`font-mono text-lg ${filteredTotal.totalSigned >= 0 ? 'text-primary' : 'text-destructive'}`}>
+            R$ {filteredTotal.totalSigned.toFixed(2)}
           </div>
           <div className="font-mono text-audit-xs text-muted-foreground">
-            P(+1) D(-1) O(0) · {filtered.length} itens
+            P(+1) D(-1) O(0) · {filteredTotal.count} itens
           </div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
           <div className="audit-label mb-1">SOMA BASE IRRF (K300)</div>
-          <div className="font-mono text-lg text-foreground">R$ {totals.irrfTotal.toFixed(2)}</div>
-          <div className="font-mono text-audit-xs text-muted-foreground">{totals.irrfCount} itens com base IRRF</div>
+          <div className="font-mono text-lg text-foreground">R$ {baseTotals.irrfTotal.toFixed(2)}</div>
+          <div className="font-mono text-audit-xs text-muted-foreground">{baseTotals.irrfCount} itens com base IRRF</div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
           <div className="audit-label mb-1">SOMA BASE PS (K300)</div>
-          <div className="font-mono text-lg text-primary">R$ {totals.psTotal.toFixed(2)}</div>
-          <div className="font-mono text-audit-xs text-muted-foreground">{totals.psCount} itens com base PS</div>
+          <div className="font-mono text-lg text-primary">R$ {baseTotals.psTotal.toFixed(2)}</div>
+          <div className="font-mono text-audit-xs text-muted-foreground">{baseTotals.psCount} itens com base PS</div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
           <div className="audit-label mb-1">DIFERENÇA IRRF</div>
@@ -212,7 +221,7 @@ export function K250LinkedItemsPanel({
             R$ {diffIRRF.toFixed(2)}
           </div>
           <div className="font-mono text-audit-xs text-muted-foreground">
-            K250({k250BaseIRRF.toFixed(2)}) − K300({totals.irrfTotal.toFixed(2)})
+            K250({k250BaseIRRF.toFixed(2)}) − K300({baseTotals.irrfTotal.toFixed(2)})
           </div>
         </div>
         <div className="rounded-sm border border-border bg-background/60 p-3">
@@ -221,7 +230,7 @@ export function K250LinkedItemsPanel({
             R$ {diffPS.toFixed(2)}
           </div>
           <div className="font-mono text-audit-xs text-muted-foreground">
-            K250({k250BasePS.toFixed(2)}) − K300({totals.psTotal.toFixed(2)})
+            K250({k250BasePS.toFixed(2)}) − K300({baseTotals.psTotal.toFixed(2)})
           </div>
         </div>
       </div>
