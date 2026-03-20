@@ -278,10 +278,10 @@ export function parseMANADFile(content: string): MANADFile {
           employeeCode: fields[4] || '',
           period: parsePeriod(fields[5] || ''),
           eventCode: fields[6] || '',
-          value: fields[7] || '',
-          indRubr: fields[8] || '',
-          indBaseIRRF: fields[9] || '',
-          indBasePS: fields[10] || '',
+          value: (fields[7] || '').trim(),
+          indRubr: (fields[8] || '').trim(),
+          indBaseIRRF: (fields[9] || '').trim(),
+          indBasePS: (fields[10] || '').trim(),
           rawLine: line,
         });
         break;
