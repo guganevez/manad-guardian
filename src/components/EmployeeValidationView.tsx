@@ -371,6 +371,7 @@ export function EmployeeValidationView({ file }: EmployeeValidationViewProps) {
                         <th className="audit-label p-2 text-right">VALOR</th>
                         <th className="audit-label p-2 text-right">C/ SINAL</th>
                         <th className="audit-label p-2 text-left">RUBRICA</th>
+                        <th className="audit-label p-2 text-center">COMPÕE BASE</th>
                         <th className="audit-label p-2 text-left">BASE IRRF</th>
                         <th className="audit-label p-2 text-left">BASE PS</th>
                       </tr>
@@ -378,6 +379,8 @@ export function EmployeeValidationView({ file }: EmployeeValidationViewProps) {
                     <tbody>
                       {filteredK300.map((r, i) => {
                         const signed = parseValue(r.value) * getRubrMultiplier(r.indRubr);
+                        const isBaseIRRF = !!(r.indBaseIRRF && r.indBaseIRRF !== '3');
+                        const isBasePS = !!(r.indBasePS && r.indBasePS !== '8');
                         return (
                           <tr
                             key={`${r.eventCode}-${i}`}
@@ -396,6 +399,23 @@ export function EmployeeValidationView({ file }: EmployeeValidationViewProps) {
                               <span className={r.indRubr === 'P' ? 'text-primary' : r.indRubr === 'D' ? 'text-destructive' : 'text-muted-foreground'}>
                                 {r.indRubr} - {IND_RUBR_LABELS[r.indRubr] || r.indRubr}
                               </span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {isBaseIRRF && (
+                                  <span className="inline-flex rounded-sm bg-chart-4/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-chart-4">
+                                    IRRF
+                                  </span>
+                                )}
+                                {isBasePS && (
+                                  <span className="inline-flex rounded-sm bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                                    PS
+                                  </span>
+                                )}
+                                {!isBaseIRRF && !isBasePS && (
+                                  <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                                )}
+                              </div>
                             </td>
                             <td className="p-2 font-mono text-audit-xs text-muted-foreground">
                               {r.indBaseIRRF ? `${r.indBaseIRRF} - ${IND_BASE_IRRF_LABELS[r.indBaseIRRF] || r.indBaseIRRF}` : '—'}
